@@ -1,20 +1,50 @@
 import '../global.css';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
+import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 
+import { initDatabase } from '@/services/database';
+import { useChatStore } from '@/store/chatStore';
+
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: '(drawer)',
 };
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
+  const loadMessages = useChatStore((s) => s.loadMessages);
+
+  useEffect(() => {
+    async function bootstrap() {
+      try {
+        await initDatabase();
+        await loadMessages();
+      } catch (error) {
+        console.warn('[RootLayout] Bootstrap error:', error);
+      } finally {
+        setIsReady(true);
+      }
+    }
+    bootstrap();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0a0a0f', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#7fff9e" />
+      </View>
+    );
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0f' }}>
       <SafeAreaProvider>
-        <Stack>
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0a0a0f' } }}>
+          <Stack.Screen name="(drawer)" />
           <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
         </Stack>
       </SafeAreaProvider>

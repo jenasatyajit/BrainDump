@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DUMP — Semantic Inbox</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #222230;
+    --text: #e8e8f0;
+    --muted: #5a5a70;
+    --accent: #7fff9e;
+    --accent2: #ff7eb3;
+    --accent3: #7eb8ff;
+    --task-color: #7eb8ff;
+    --note-color: #ffd97e;
+    --reminder-color: #ff7eb3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .phone-frame {
+    width: 390px;
+    height: 844px;
+    background: var(--surface);
+    border-radius: 44px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    padding: 14px 28px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .notch {
+    width: 120px;
+    height: 30px;
+    background: var(--bg);
+    border-radius: 0 0 18px 18px;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* HEADER */
+  .header {
+    padding: 12px 24px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .app-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .app-title span {
+    color: var(--accent);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MAIN CONTENT AREA */
+  .screen {
+    flex: 1;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    position: relative;
+  }
+  .screen.active { display: flex; }
+
+  /* CHAT SCREEN */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+  .chat-messages::-webkit-scrollbar { display: none; }
+
+  .date-divider {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    padding: 8px 0;
+    text-transform: uppercase;
+  }
+
+  /* AI GREETING */
+  .ai-greeting {
+    background: linear-gradient(135deg, rgba(127,255,158,0.08), rgba(126,184,255,0.08));
+    border: 1px solid rgba(127,255,158,0.15);
+    border-radius: 20px 20px 20px 4px;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    position: relative;
+  }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(127,255,158,0.12);
+    border: 1px solid rgba(127,255,158,0.2);
+    border-radius: 20px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  /* USER MESSAGES */
+  .msg-user {
+    align-self: flex-end;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 4px 20px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 78%;
+  }
+
+  /* AI RESPONSE BUBBLE */
+  .msg-ai {
+    align-self: flex-start;
+    max-width: 88%;
+  }
+
+  .msg-ai-inner {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 20px 4px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* INTERACTIVE CARDS */
+  .parsed-card {
+    margin-top: 6px;
+    border-radius: 16px;
+    padding: 12px 14px;
+    font-size: 13px;
+    border: 1px solid;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .parsed-card.task {
+    background: rgba(126,184,255,0.07);
+    border-color: rgba(126,184,255,0.2);
+  }
+  .parsed-card.note {
+    background: rgba(255,217,126,0.07);
+    border-color: rgba(255,217,126,0.2);
+  }
+  .parsed-card.reminder {
+    background: rgba(255,126,179,0.07);
+    border-color: rgba(255,126,179,0.2);
+  }
+
+  .card-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .task .card-tag { color: var(--task-color); }
+  .note .card-tag { color: var(--note-color); }
+  .reminder .card-tag { color: var(--reminder-color); }
+
+  .card-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .card-title {
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  .card-meta {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .task-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .checkbox {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--task-color);
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .task-checkbox.done .checkbox {
+    background: var(--task-color);
+  }
+  .task-checkbox.done .card-title {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  /* PROCESSING INDICATOR */
+  .thinking {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 20px 4px;
+    width: fit-content;
+    align-items: center;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* INPUT AREA */
+  .chat-input-area {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .input-wrap {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    align-items: flex-end;
+    padding: 4px 4px 4px 14px;
+    transition: border-color 0.2s;
+  }
+
+  .input-wrap:focus-within {
+    border-color: rgba(127,255,158,0.3);
+  }
+
+  .chat-input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    flex: 1;
+    resize: none;
+    padding: 7px 0;
+    max-height: 80px;
+    line-height: 1.5;
+  }
+
+  .chat-input::placeholder { color: var(--muted); }
+
+  .voice-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 14px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .voice-btn:hover { color: var(--accent2); }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 16px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { transform: scale(1.05); }
+  .send-btn svg { color: #0a0a0f; }
+
+  /* INPUT HINTS */
+  .input-hints {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .input-hints::-webkit-scrollbar { display: none; }
+
+  .hint-chip {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+  }
+  .hint-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    height: 72px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 20px;
+    flex-shrink: 0;
+    padding-bottom: 8px;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 6px 16px;
+    border-radius: 14px;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .nav-item.active {
+    background: rgba(127,255,158,0.08);
+  }
+
+  .nav-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--muted);
+    transition: color 0.15s;
+  }
+
+  .nav-item.active .nav-icon { color: var(--accent); }
+
+  .nav-label {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .nav-item.active .nav-label { color: var(--accent); }
+
+  .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 10px;
+    width: 7px;
+    height: 7px;
+    background: var(--accent2);
+    border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+
+  /* TASKS SCREEN */
+  .screen-header {
+    padding: 16px 24px 12px;
+    flex-shrink: 0;
+  }
+
+  .screen-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.3px;
+  }
+
+  .screen-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+
+  .filter-pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .filter-pill.active {
+    background: rgba(126,184,255,0.12);
+    border-color: rgba(126,184,255,0.3);
+    color: var(--task-color);
+  }
+
+  .task-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: none;
+  }
+  .task-list::-webkit-scrollbar { display: none; }
+
+  .task-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .task-item:hover {
+    border-color: rgba(126,184,255,0.2);
+    background: rgba(126,184,255,0.04);
+  }
+
+  .task-item.completed {
+    opacity: 0.5;
+  }
+
+  .task-item .checkbox {
+    margin-top: 2px;
+  }
+
+  .task-content {
+    flex: 1;
+  }
+
+  .task-text {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    transition: all 0.15s;
+  }
+
+  .task-item.completed .task-text {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  .task-detail {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .priority-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  /* NOTES SCREEN */
+  .notes-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-content: start;
+    scrollbar-width: none;
+  }
+  .notes-grid::-webkit-scrollbar { display: none; }
+
+  .note-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .note-card:hover { transform: translateY(-2px); border-color: rgba(255,217,126,0.25); }
+
+  .note-card:first-child { grid-column: span 2; }
+
+  .note-emoji {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .note-title {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Syne', sans-serif;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .note-preview {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .note-date {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* DIGEST BANNER */
+  .digest-banner {
+    margin: 0 16px 12px;
+    background: linear-gradient(135deg, rgba(127,255,158,0.1), rgba(126,184,255,0.08));
+    border: 1px solid rgba(127,255,158,0.2);
+    border-radius: 18px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .digest-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(127,255,158,0.12);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .digest-text .title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+  }
+
+  .digest-text .sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* VOICE MODAL OVERLAY */
+  .voice-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,15,0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 100;
+    border-radius: 44px;
+  }
+
+  .voice-overlay.show { display: flex; }
+
+  .voice-ring {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,126,179,0.1);
+    border: 2px solid rgba(255,126,179,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: breathe 1.5s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,126,179,0.3); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 20px rgba(255,126,179,0); }
+  }
+
+  .voice-ring-inner {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255,126,179,0.15);
+    border: 2px solid rgba(255,126,179,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent2);
+  }
+
+  .voice-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .voice-close {
+    padding: 10px 24px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="notch"></div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="width:120px"></span>
+    <span>●●● 5G ▣</span>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="app-title">DU<span>MP</span></div>
+    <div class="header-actions">
+      <div class="icon-btn" onclick="toggleVoice()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+        </svg>
+      </div>
+      <div class="icon-btn">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INBOX SCREEN ===== -->
+  <div class="screen active" id="screen-inbox">
+
+    <!-- Daily Digest Banner -->
+    <div class="digest-banner">
+      <div class="digest-icon">✦</div>
+      <div class="digest-text">
+        <div class="title">Daily Digest Ready</div>
+        <div class="sub">7 items synthesized · tap to view</div>
+      </div>
+      <svg width="16" height="16" fill="none" stroke="rgba(127,255,158,0.5)" stroke-width="2" viewBox="0 0 24 24">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="date-divider">Today</div>
+
+      <!-- AI Greeting -->
+      <div class="ai-greeting">
+        <div class="ai-badge">
+          <div class="card-dot" style="background:var(--accent)"></div>
+          AI ENGINE
+        </div>
+        Morning. What's on your mind? Dump anything — I'll sort it out.
+      </div>
+
+      <!-- Sample messages -->
+      <div class="msg-user">need to call dentist tmr morning, been putting it off for weeks</div>
+      <div class="msg-ai">
+        <div class="msg-ai-inner">Got it. Parsed as a reminder.</div>
+        <div class="parsed-card reminder">
+          <div class="card-tag"><div class="card-dot"></div> REMINDER</div>
+          <div class="card-title">Call dentist</div>
+          <div class="card-meta">Tomorrow · Morning · 🔴 Overdue</div>
+        </div>
+      </div>
+
+      <div class="msg-user">finish the Q3 report and send it to sarah before EOD friday. also update the cover slide with new branding</div>
+      <div class="msg-ai">
+        <div class="msg-ai-inner">Two tasks detected. Added both to your queue.</div>
+        <div class="parsed-card task" style="margin-bottom:6px">
+          <div class="task-checkbox" onclick="this.classList.toggle('done')">
+            <div class="checkbox">
+              <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+            </div>
+            <div>
+              <div class="card-tag"><div class="card-dot"></div> TASK</div>
+              <div class="card-title">Finish Q3 report & send to Sarah</div>
+              <div class="card-meta">Due Friday EOD · 🟡 High priority</div>
+            </div>
+          </div>
+        </div>
+        <div class="parsed-card task">
+          <div class="task-checkbox" onclick="this.classList.toggle('done')">
+            <div class="checkbox">
+              <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+            </div>
+            <div>
+              <div class="card-tag"><div class="card-dot"></div> TASK</div>
+              <div class="card-title">Update cover slide with new branding</div>
+              <div class="card-meta">Due Friday · Linked to Q3 report</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg-user">interesting idea — use vector embeddings to auto-link related notes across time. could surface forgotten context when you're working on similar problems</div>
+      <div class="msg-ai">
+        <div class="msg-ai-inner">Saved as a note. Linked to 2 existing entries on embeddings.</div>
+        <div class="parsed-card note">
+          <div class="card-tag"><div class="card-dot"></div> NOTE — IDEA</div>
+          <div class="card-title">Vector embeddings for temporal note linking</div>
+          <div class="card-meta">🔗 Related: "PKM architecture", "semantic search" · Today</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input-area">
+      <div class="input-hints">
+        <div class="hint-chip" onclick="fillInput('Remind me to...')">remind me</div>
+        <div class="hint-chip" onclick="fillInput('Task: ')">add task</div>
+        <div class="hint-chip" onclick="fillInput('Note: ')">note</div>
+        <div class="hint-chip" onclick="fillInput('Idea — ')">idea</div>
+        <div class="hint-chip" onclick="fillInput('Follow up with ')">follow up</div>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <textarea class="chat-input" id="chat-input" rows="1" placeholder="Brain dump anything..."></textarea>
+          <button class="voice-btn" onclick="toggleVoice()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            </svg>
+          </button>
+        </div>
+        <button class="send-btn" onclick="sendMessage()">
+          <svg width="18" height="18" fill="none" stroke="#0a0a0f" stroke-width="2.5" viewBox="0 0 24 24">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TASKS SCREEN ===== -->
+  <div class="screen" id="screen-tasks">
+    <div class="screen-header">
+      <div class="screen-title">Tasks</div>
+      <div class="screen-subtitle">6 pending · 3 completed today</div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-pill active">All</div>
+      <div class="filter-pill">Today</div>
+      <div class="filter-pill">This Week</div>
+      <div class="filter-pill">Overdue</div>
+    </div>
+
+    <div class="task-list" id="task-list">
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="checkbox" style="border-color:var(--accent2)">
+          <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="task-content">
+          <div class="task-text">Finish Q3 report & send to Sarah</div>
+          <div class="task-detail">Due Fri EOD · Work</div>
+        </div>
+        <div class="priority-dot" style="background:var(--accent2)"></div>
+      </div>
+
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="checkbox" style="border-color:var(--task-color)">
+          <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="task-content">
+          <div class="task-text">Update cover slide with new branding</div>
+          <div class="task-detail">Due Fri · Linked to Q3 report</div>
+        </div>
+        <div class="priority-dot" style="background:var(--task-color)"></div>
+      </div>
+
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="checkbox" style="border-color:var(--accent)">
+          <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="task-content">
+          <div class="task-text">Review design system proposal</div>
+          <div class="task-detail">Today · Design</div>
+        </div>
+        <div class="priority-dot" style="background:var(--accent)"></div>
+      </div>
+
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="checkbox" style="border-color:var(--muted)">
+          <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="task-content">
+          <div class="task-text">Book flights for conference</div>
+          <div class="task-detail">No due date · Travel</div>
+        </div>
+        <div class="priority-dot" style="background:var(--muted)"></div>
+      </div>
+
+      <div class="task-item completed" onclick="toggleTask(this)">
+        <div class="checkbox" style="background:var(--muted); border-color:var(--muted)">
+          <svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="task-content">
+          <div class="task-text">Morning standup prep</div>
+          <div class="task-detail">Completed · 8:45 AM</div>
+        </div>
+        <div class="priority-dot" style="background:var(--muted)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NOTES SCREEN ===== -->
+  <div class="screen" id="screen-notes">
+    <div class="screen-header">
+      <div class="screen-title">Notes</div>
+      <div class="screen-subtitle">12 notes · 4 ideas</div>
+    </div>
+
+    <div class="notes-grid">
+      <div class="note-card">
+        <div class="note-emoji">💡</div>
+        <div class="note-title">Vector embeddings for temporal note linking</div>
+        <div class="note-preview">Use vector embeddings to auto-link related notes across time. Could surface forgotten context when working on similar problems — essentially a memory layer on top of your second brain.</div>
+        <div class="note-date">Today · 2 related notes</div>
+      </div>
+
+      <div class="note-card">
+        <div class="note-emoji">🏗️</div>
+        <div class="note-title">PKM Architecture</div>
+        <div class="note-preview">Hierarchy vs links debate. Folders for archives, tags for concepts...</div>
+        <div class="note-date">Yesterday</div>
+      </div>
+
+      <div class="note-card">
+        <div class="note-emoji">📖</div>
+        <div class="note-title">Book Notes: PARA</div>
+        <div class="note-preview">Projects, Areas, Resources, Archives. The key insight is actionability...</div>
+        <div class="note-date">Mon</div>
+      </div>
+
+      <div class="note-card">
+        <div class="note-emoji">🎯</div>
+        <div class="note-title">Q3 Goals</div>
+        <div class="note-preview">Ship v2 by Sept. Grow to 10k users. Reduce churn below 3%...</div>
+        <div class="note-date">Jul 1</div>
+      </div>
+
+      <div class="note-card">
+        <div class="note-emoji">☕</div>
+        <div class="note-title">Meeting: Sarah</div>
+        <div class="note-preview">Discussed new branding direction. She prefers the minimal approach over bold...</div>
+        <div class="note-date">Mon</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-inbox" onclick="switchTab('inbox')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="nav-label">Inbox</span>
+    </div>
+    <div class="nav-item" id="nav-tasks" onclick="switchTab('tasks')">
+      <div class="nav-badge"></div>
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      </svg>
+      <span class="nav-label">Tasks</span>
+    </div>
+    <div class="nav-item" id="nav-notes" onclick="switchTab('notes')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      </svg>
+      <span class="nav-label">Notes</span>
+    </div>
+  </div>
+
+  <!-- VOICE OVERLAY -->
+  <div class="voice-overlay" id="voice-overlay">
+    <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;">WHISPER ENGINE</div>
+    <div class="voice-ring">
+      <div class="voice-ring-inner">
+        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </div>
+    </div>
+    <div class="voice-label">LISTENING...</div>
+    <button class="voice-close" onclick="toggleVoice()">TAP TO CANCEL</button>
+  </div>
+
+</div>
+
+<script>
+  // ---- TAB SWITCHING ----
+  function switchTab(tab) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('screen-' + tab).classList.add('active');
+    document.getElementById('nav-' + tab).classList.add('active');
+  }
+
+  // ---- TASK TOGGLE ----
+  function toggleTask(el) {
+    el.classList.toggle('completed');
+    const cb = el.querySelector('.checkbox');
+    if (el.classList.contains('completed')) {
+      cb.style.background = cb.style.borderColor.replace(')',',0.5)').replace('rgb','rgba');
+    } else {
+      cb.style.background = '';
+    }
+  }
+
+  // ---- INPUT HINT FILL ----
+  function fillInput(text) {
+    const input = document.getElementById('chat-input');
+    input.value = text;
+    input.focus();
+    input.style.height = 'auto';
+  }
+
+  // ---- AUTO RESIZE INPUT ----
+  const chatInput = document.getElementById('chat-input');
+  chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+  });
+
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ---- SEND MESSAGE ----
+  const responses = [
+    {
+      type: 'task',
+      match: ['task', 'todo', 'do', 'finish', 'complete', 'send', 'submit', 'fix', 'update', 'write', 'review', 'check'],
+      reply: 'Detected a task. Added to your queue.',
+      makeCard: (text) => `<div class="parsed-card task">
+        <div class="task-checkbox" onclick="this.classList.toggle('done')">
+          <div class="checkbox"><svg width="10" height="10" fill="none" stroke="#0a0a0f" stroke-width="3" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>
+          <div>
+            <div class="card-tag"><div class="card-dot"></div> TASK</div>
+            <div class="card-title">${text.substring(0,60)}${text.length > 60 ? '...' : ''}</div>
+            <div class="card-meta">Tap to complete</div>
+          </div>
+        </div>
+      </div>`
+    },
+    {
+      type: 'reminder',
+      match: ['remind', 'reminder', 'tomorrow', 'tmr', 'tonight', 'morning', 'meeting', 'call', 'appointment'],
+      reply: 'Got it. Saved as a reminder.',
+      makeCard: (text) => `<div class="parsed-card reminder">
+        <div class="card-tag"><div class="card-dot"></div> REMINDER</div>
+        <div class="card-title">${text.substring(0,60)}${text.length > 60 ? '...' : ''}</div>
+        <div class="card-meta">Notification queued</div>
+      </div>`
+    },
+    {
+      type: 'note',
+      match: [],
+      reply: 'Saved as a note. I\'ll look for related entries.',
+      makeCard: (text) => `<div class="parsed-card note">
+        <div class="card-tag"><div class="card-dot"></div> NOTE</div>
+        <div class="card-title">${text.substring(0,60)}${text.length > 60 ? '...' : ''}</div>
+        <div class="card-meta">Indexed · Searchable</div>
+      </div>`
+    }
+  ];
+
+  function getResponse(text) {
+    const lower = text.toLowerCase();
+    for (const r of responses.slice(0,2)) {
+      if (r.match.some(w => lower.includes(w))) return r;
+    }
+    return responses[2];
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const container = document.getElementById('chat-messages');
+
+    // User message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg-user';
+    userMsg.textContent = text;
+    container.appendChild(userMsg);
+
+    // Thinking
+    const thinking = document.createElement('div');
+    thinking.className = 'msg-ai';
+    thinking.innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+    container.appendChild(thinking);
+
+    input.value = '';
+    input.style.height = 'auto';
+    container.scrollTop = container.scrollHeight;
+
+    setTimeout(() => {
+      const r = getResponse(text);
+      thinking.innerHTML = `<div class="msg-ai-inner">${r.reply}</div>${r.makeCard(text)}`;
+      container.scrollTop = container.scrollHeight;
+    }, 900 + Math.random() * 400);
+  }
+
+  // ---- VOICE ----
+  function toggleVoice() {
+    const overlay = document.getElementById('voice-overlay');
+    overlay.classList.toggle('show');
+  }
+</script>
+</body>
+</html>
