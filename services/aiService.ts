@@ -1,11 +1,11 @@
 /**
  * AI Service — Gemini-powered intent detection with local fallback
  *
- * Primary: Calls Gemini 3.5 Flash to classify user text
+ * Primary: Calls Gemini 3 Flash to classify user text
  * Fallback: Local keyword/pattern matching if API fails
  */
 
-import { callGeminiWithRetry, GeminiError } from './geminiService';
+import { callGeminiWithRetry } from './geminiService';
 
 // ── Types (unchanged, used by the rest of the app) ──
 
@@ -52,6 +52,10 @@ Response schema:
 }
 
 Classification rules:
+- STRICT OVERRIDES:
+  * If the text starts with "Note: " or "Idea — ", it MUST be type: "note".
+  * If the text starts with "Task: ", it MUST be type: "task".
+  * If the text starts with "Remind me to ", it MUST be type: "reminder".
 - If the text mentions a specific time, deadline, or "remind me" → type: "reminder"
 - If the text describes an action the user needs to take → type: "task"
 - Otherwise → type: "note"
@@ -170,11 +174,22 @@ const TASK_PATTERNS = [
 ];
 
 function localClassify(text: string): ParsedEntry[] {
-    const isReminder = REMINDER_PATTERNS.some((p) => p.test(text));
-    const isTask = TASK_PATTERNS.some((p) => p.test(text));
-
     const title = text.charAt(0).toUpperCase() + text.slice(1);
     const shortTitle = title.length > 80 ? title.substring(0, 77) + '...' : title;
+
+    const lower = text.trim().toLowerCase();
+    if (lower.startsWith('note:') || lower.startsWith('idea —')) {
+        return [{ type: 'note', title: shortTitle, category: 'General', isCompleted: false }];
+    }
+    if (lower.startsWith('task:')) {
+        return [{ type: 'task', title: shortTitle, priority: 'medium', isCompleted: false }];
+    }
+    if (lower.startsWith('remind me to')) {
+        return [{ type: 'reminder', title: shortTitle, priority: 'medium', isCompleted: false }];
+    }
+
+    const isReminder = REMINDER_PATTERNS.some((p) => p.test(text));
+    const isTask = TASK_PATTERNS.some((p) => p.test(text));
 
     if (isReminder) {
         return [{ type: 'reminder', title: shortTitle, priority: 'medium', isCompleted: false }];
