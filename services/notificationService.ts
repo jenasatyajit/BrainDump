@@ -43,9 +43,13 @@ export async function requestPermissions(): Promise<boolean> {
     if (Platform.OS === 'android') {
         await N.setNotificationChannelAsync('reminders', {
             name: 'Reminders',
+            description: 'Brain Dump reminder alerts',
             importance: N.AndroidImportance.HIGH,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#7fff9e',
+            enableVibrate: true,
+            showBadge: true,
+            sound: 'default',
         });
     }
 
@@ -79,14 +83,19 @@ export async function scheduleReminder(
 
         const notificationId = await N.scheduleNotificationAsync({
             content: {
-                title: '🔔 Reminder',
+                title: '⏰ Brain Dump',
+                subtitle: 'Reminder',          // shown on iOS below title
                 body: title,
                 data: { reminderId },
                 sound: true,
+                badge: 1,
+                categoryIdentifier: 'reminder',
+                color: '#7fff9e',              // Android notification accent color
             },
             trigger: {
                 type: N.SchedulableTriggerInputTypes.TIME_INTERVAL,
                 seconds: secondsUntil,
+                channelId: 'reminders',        // link to the styled Android channel
             },
         });
 

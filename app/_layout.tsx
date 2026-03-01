@@ -8,6 +8,7 @@ import { Stack } from 'expo-router';
 
 import { initDatabase } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
+import NotificationToast from '@/components/NotificationToast';
 
 export const unstable_settings = {
   initialRouteName: '(drawer)',
@@ -47,6 +48,7 @@ export default function RootLayout() {
           <Stack.Screen name="(drawer)" />
           <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
         </Stack>
+        <NotificationToast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
