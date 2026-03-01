@@ -1,6 +1,6 @@
-import React, { useRef, useCallback } from 'react';
-import { View, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useRef, useCallback, useState } from 'react';
+import { View, FlatList, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChatStore, type ChatMessage } from '@/store/chatStore';
 import { generateDigest } from '@/services/aiService';
 
@@ -14,10 +14,16 @@ import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import ChatInput from '@/components/chat/ChatInput';
 
 export default function InboxScreen() {
-  const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
-  const { messages, isProcessing, addUserMessage, toggleTaskComplete, addDigestMessage } =
+  const { messages, isProcessing, addUserMessage, toggleTaskComplete, addDigestMessage, loadMessages } =
     useChatStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadMessages();
+    setRefreshing(false);
+  }, [loadMessages]);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -94,9 +100,9 @@ export default function InboxScreen() {
       behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <View style={{ paddingTop: insets.top }} className="flex-1">
+      <SafeAreaView edges={['top']} className="flex-1">
         <ChatHeader />
-        <DigestBanner onPress={handleDigest} />
+        <DigestBanner onPress={handleDigest} itemCount={messages.reduce((sum, m) => sum + (m.entries?.length || 0), 0)} />
 
         <FlatList
           ref={flatListRef}
@@ -106,13 +112,16 @@ export default function InboxScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12, gap: 10 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={<DateDivider label="Today" />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7fff9e" colors={['#7fff9e']} progressBackgroundColor="#18181f" />
+          }
           onContentSizeChange={() => {
             flatListRef.current?.scrollToEnd({ animated: false });
           }}
         />
 
         <ChatInput onSend={handleSend} isProcessing={isProcessing} />
-      </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }

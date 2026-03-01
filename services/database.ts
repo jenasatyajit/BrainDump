@@ -326,11 +326,9 @@ export async function exportAllData(): Promise<{
 
 export async function clearAllData(): Promise<void> {
     const d = getDb();
-    await d.execAsync(`
-    DELETE FROM chat_messages;
-    DELETE FROM tasks;
-    DELETE FROM notes;
-    DELETE FROM reminders;
-    DELETE FROM entries;
-  `);
+    await d.execAsync('DELETE FROM chat_messages');
+    await d.execAsync('DELETE FROM tasks');
+    await d.execAsync('DELETE FROM notes');
+    await d.execAsync('DELETE FROM reminders');
+    await d.execAsync('DELETE FROM entries');
 }

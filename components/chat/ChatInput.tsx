@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, Text } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, Text, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ChatInputProps {
@@ -24,6 +24,7 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
         if (!trimmed || isProcessing) return;
         onSend(trimmed);
         setText('');
+        Keyboard.dismiss();
     };
 
     const handleChip = (fillText: string) => {
@@ -66,7 +67,7 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
                         maxLength={500}
                         style={{ maxHeight: 80 }}
                         onSubmitEditing={handleSend}
-                        blurOnSubmit={false}
+                        blurOnSubmit={true}
                     />
                     <TouchableOpacity className="h-[34px] w-[34px] items-center justify-center rounded-[14px]" activeOpacity={0.7}>
                         <Ionicons name="mic-outline" size={16} color="#5a5a70" />

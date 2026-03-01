@@ -73,6 +73,16 @@ export default function DrawerLayout() {
           ),
         }}
       />
+      <Drawer.Screen
+        name="auth"
+        options={{
+          headerShown: true,
+          headerTitle: 'Sign In',
+          headerStyle: { backgroundColor: '#111118' },
+          headerTintColor: '#e8e8f0',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
     </Drawer>
   );
 }

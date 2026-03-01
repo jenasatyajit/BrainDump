@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "brain-dump",
+    "name": "Brain Dump",
     "slug": "brain-dump",
     "version": "1.0.0",
     "scheme": "brain-dump",
@@ -27,19 +27,21 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0f0f0f"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.satya.braindump"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
+      "package": "com.satya.braindump",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0f0f0f"
       }
     }
   }

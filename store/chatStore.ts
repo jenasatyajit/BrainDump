@@ -28,10 +28,17 @@ let idCounter = Date.now();
 const generateId = () => String(++idCounter);
 
 // ── Welcome message shown on first launch ──
+function getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+}
+
 const WELCOME_MESSAGE: ChatMessage = {
     id: 'welcome-1',
     role: 'ai',
-    content: "Morning. What's on your mind? Dump anything — I'll sort it out.",
+    content: `${getGreeting()}. What's on your mind? Dump anything — I'll sort it out.`,
     createdAt: new Date(),
 };
 

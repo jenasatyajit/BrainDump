@@ -1,13 +1,13 @@
 /**
  * Gemini API Service — Low-level wrapper for Google Gemini API
  *
- * Model: gemini-3.5-flash-preview
+ * Model: gemini-3-flash-preview
  * Endpoint: generativelanguage.googleapis.com/v1beta
  */
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
-const MODEL = 'gemini-3.5-flash-preview';
+const MODEL = 'gemini-3-flash-preview';
 const TIMEOUT_MS = 10_000;
 
 interface GeminiRequest {

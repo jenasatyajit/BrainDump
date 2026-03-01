@@ -2,6 +2,8 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 const tabs = [
     { name: 'index', label: 'Inbox', icon: 'chatbubble-outline' as const, activeIcon: 'chatbubble' as const },
@@ -10,14 +12,22 @@ const tabs = [
 ];
 
 export default function TabBar({ state, navigation }: BottomTabBarProps) {
+    const insets = useSafeAreaInsets();
+
     return (
-        <View className="flex-row items-center justify-around border-t border-border bg-surface px-5 pb-6 pt-2">
+        <View
+            className="flex-row items-center justify-around border-t border-border bg-surface px-5 pt-2"
+            style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+        >
             {tabs.map((tab, index) => {
                 const isActive = state.index === index;
                 return (
                     <TouchableOpacity
                         key={tab.name}
-                        onPress={() => navigation.navigate(tab.name)}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            navigation.navigate(tab.name);
+                        }}
                         className={`relative flex-col items-center gap-1 rounded-[14px] px-4 py-1.5 ${isActive ? 'bg-accent/[0.08]' : ''}`}
                         activeOpacity={0.7}
                     >

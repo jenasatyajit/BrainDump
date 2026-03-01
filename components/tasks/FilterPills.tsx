@@ -20,8 +20,8 @@ export default function FilterPills({ activeFilter, onFilterChange }: FilterPill
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            className="mb-3 px-4"
-            contentContainerStyle={{ gap: 6 }}
+            className="mb-3 max-h-9"
+            contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}
         >
             {FILTERS.map((filter) => {
                 const isActive = activeFilter === filter.key;

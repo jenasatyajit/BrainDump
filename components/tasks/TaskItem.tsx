@@ -14,65 +14,83 @@ const PRIORITY_COLORS: Record<string, string> = {
     low: '#7fff9e',
 };
 
-function formatDetail(task: TaskEntry): string {
-    const parts: string[] = [];
+function formatTaskDetail(task: TaskEntry): string {
+    if (task.isCompleted) return 'Completed';
+    if (!task.dueDate) return 'No due date';
 
-    if (task.isCompleted) {
-        parts.push('Completed');
-    } else if (task.dueDate) {
-        const date = new Date(task.dueDate);
-        const today = new Date();
-        const diffDays = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+    const date = new Date(task.dueDate);
+    const diffDays = Math.ceil((date.getTime() - Date.now()) / 86400000);
 
-        if (diffDays === 0) parts.push('Due Today');
-        else if (diffDays === 1) parts.push('Due Tomorrow');
-        else if (diffDays < 0) parts.push('Overdue');
-        else
-            parts.push(
-                `Due ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-            );
-    } else {
-        parts.push('No due date');
+    if (diffDays === 0) return 'Due Today';
+    if (diffDays === 1) return 'Due Tomorrow';
+    if (diffDays < 0) return 'Overdue';
+    return `Due ${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+}
+
+function formatReminderDetail(task: TaskEntry): string {
+    const raw = task.remindAt || task.dueDate;
+    if (!raw) return 'No date set';
+    const date = new Date(raw);
+    const diffDays = Math.ceil((date.getTime() - Date.now()) / 86400000);
+
+    let when = '';
+    if (diffDays === 0) when = 'Today';
+    else if (diffDays === 1) when = 'Tomorrow';
+    else if (diffDays < 0) when = 'Overdue';
+    else when = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    // Include time if available
+    const hasTime = raw.includes('T');
+    if (hasTime) {
+        const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return `${when} at ${time}`;
     }
-
-    if (task.category) parts.push(task.category);
-
-    return parts.join(' · ');
+    return when;
 }
 
 export default function TaskItem({ task, onToggle }: TaskItemProps) {
-    const priorityColor = PRIORITY_COLORS[task.priority || 'low'] || '#5a5a70';
+    const isReminder = task.type === 'reminder';
+    const priorityColor = isReminder ? '#c084fc' : (PRIORITY_COLORS[task.priority || 'low'] || '#5a5a70');
 
     return (
         <TouchableOpacity
-            className={`flex-row items-start gap-3 rounded-2xl border border-border bg-surface2 p-3.5 px-4 ${task.isCompleted ? 'opacity-50' : ''
-                }`}
+            className={`flex-row items-start gap-3 rounded-2xl border border-border bg-surface2 p-3.5 px-4 ${task.isCompleted ? 'opacity-50' : ''}`}
             activeOpacity={0.7}
             onPress={onToggle}
         >
-            {/* Checkbox */}
-            <View
-                className="mt-0.5 h-[18px] w-[18px] items-center justify-center rounded-[5px] border-[1.5px]"
-                style={{
-                    borderColor: task.isCompleted ? '#5a5a70' : priorityColor,
-                    backgroundColor: task.isCompleted ? '#5a5a70' : 'transparent',
-                }}
-            >
-                {task.isCompleted && <Ionicons name="checkmark" size={10} color="#0a0a0f" />}
-            </View>
+            {/* Icon — bell for reminder, checkbox for task */}
+            {isReminder ? (
+                <View
+                    className="mt-0.5 h-[18px] w-[18px] items-center justify-center rounded-[5px]"
+                    style={{ backgroundColor: 'rgba(192,132,252,0.12)' }}
+                >
+                    <Ionicons name="notifications-outline" size={11} color="#c084fc" />
+                </View>
+            ) : (
+                <View
+                    className="mt-0.5 h-[18px] w-[18px] items-center justify-center rounded-[5px] border-[1.5px]"
+                    style={{
+                        borderColor: task.isCompleted ? '#5a5a70' : priorityColor,
+                        backgroundColor: task.isCompleted ? '#5a5a70' : 'transparent',
+                    }}
+                >
+                    {task.isCompleted && <Ionicons name="checkmark" size={10} color="#0a0a0f" />}
+                </View>
+            )}
 
             {/* Content */}
             <View className="flex-1">
                 <Text
-                    className={`text-sm font-medium leading-5 ${task.isCompleted ? 'text-muted line-through' : 'text-text'
-                        }`}
+                    className={`text-sm font-medium leading-5 ${task.isCompleted ? 'text-muted line-through' : 'text-text'}`}
                 >
                     {task.title}
                 </Text>
-                <Text className="mt-0.5 text-xs text-muted">{formatDetail(task)}</Text>
+                <Text className="mt-0.5 text-xs text-muted">
+                    {isReminder ? formatReminderDetail(task) : formatTaskDetail(task)}
+                </Text>
             </View>
 
-            {/* Priority dot */}
+            {/* Accent dot */}
             <View
                 className="mt-1 h-2 w-2 rounded-full"
                 style={{ backgroundColor: task.isCompleted ? '#5a5a70' : priorityColor }}
@@ -80,3 +98,4 @@ export default function TaskItem({ task, onToggle }: TaskItemProps) {
         </TouchableOpacity>
     );
 }
+

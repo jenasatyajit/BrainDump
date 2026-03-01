@@ -1,21 +1,29 @@
-import React from 'react';
-import { View, FlatList, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useCallback } from 'react';
+import { View, FlatList, Text, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNoteStore, type NoteEntry } from '@/store/noteStore';
+import { useChatStore } from '@/store/chatStore';
 import NotesHeader from '@/components/notes/NotesHeader';
 import NoteCard from '@/components/notes/NoteCard';
 
 export default function NotesScreen() {
-    const insets = useSafeAreaInsets();
     const { getNotes, getStats } = useNoteStore();
+    const { loadMessages } = useChatStore();
+    const [refreshing, setRefreshing] = useState(false);
 
     const notes = getNotes();
     const stats = getStats();
 
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadMessages();
+        setRefreshing(false);
+    }, [loadMessages]);
+
     if (notes.length === 0) {
         return (
-            <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+            <SafeAreaView edges={['top']} className="flex-1 bg-bg">
                 <NotesHeader total={0} ideas={0} />
                 <View className="flex-1 items-center justify-center px-6">
                     <Text className="text-base text-muted">No notes yet</Text>
@@ -23,7 +31,7 @@ export default function NotesScreen() {
                         Dump an idea or thought in the Inbox to get started.
                     </Text>
                 </View>
-            </View>
+            </SafeAreaView>
         );
     }
 
@@ -36,7 +44,7 @@ export default function NotesScreen() {
     }
 
     return (
-        <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+        <SafeAreaView edges={['top']} className="flex-1 bg-bg">
             <NotesHeader total={stats.total} ideas={stats.ideas} />
             <FlatList
                 data={[firstNote]}
@@ -47,6 +55,9 @@ export default function NotesScreen() {
                     </View>
                 )}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7fff9e" colors={['#7fff9e']} progressBackgroundColor="#18181f" />
+                }
                 ListFooterComponent={
                     <View className="px-4">
                         {rows.map((row, rowIndex) => (
@@ -63,6 +74,6 @@ export default function NotesScreen() {
                 }
                 contentContainerStyle={{ paddingBottom: 20 }}
             />
-        </View>
+        </SafeAreaView>
     );
 }

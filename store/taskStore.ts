@@ -30,9 +30,14 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         messages.forEach((msg) => {
             if (msg.entries) {
                 msg.entries.forEach((entry, idx) => {
-                    if (entry.type === 'task') {
+                    if (entry.type === 'task' || entry.type === 'reminder') {
+                        // Normalise remindAt → dueDate so filters work uniformly
+                        const normalised: ParsedEntry =
+                            entry.type === 'reminder' && entry.remindAt
+                                ? { ...entry, dueDate: entry.remindAt.split('T')[0] }
+                                : entry;
                         tasks.push({
-                            ...entry,
+                            ...normalised,
                             messageId: msg.id,
                             entryIndex: idx,
                             createdAt: msg.createdAt,
@@ -53,11 +58,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
         switch (filter) {
             case 'today':
-                return tasks.filter((t) => t.dueDate === todayStr);
+                return tasks.filter((t) => t.dueDate === todayStr || (t.remindAt && t.remindAt.startsWith(todayStr)));
             case 'thisWeek': {
                 const endOfWeek = new Date(today);
-                const dayOfWeek = endOfWeek.getDay();
-                const daysUntilSunday = 7 - dayOfWeek;
+                const daysUntilSunday = 7 - endOfWeek.getDay();
                 endOfWeek.setDate(endOfWeek.getDate() + daysUntilSunday);
                 const endStr = endOfWeek.toISOString().split('T')[0];
                 return tasks.filter((t) => t.dueDate && t.dueDate >= todayStr && t.dueDate <= endStr);
@@ -80,3 +84,4 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         return { pending, completedToday };
     },
 }));
+

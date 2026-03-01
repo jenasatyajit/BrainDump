@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
-import { View, FlatList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useState } from 'react';
+import { View, FlatList, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { useTaskStore, type TaskEntry } from '@/store/taskStore';
@@ -10,9 +10,9 @@ import FilterPills from '@/components/tasks/FilterPills';
 import TaskItem from '@/components/tasks/TaskItem';
 
 export default function TasksScreen() {
-    const insets = useSafeAreaInsets();
     const { filter, setFilter, getFilteredTasks, getStats } = useTaskStore();
-    const { toggleTaskComplete } = useChatStore();
+    const { toggleTaskComplete, loadMessages } = useChatStore();
+    const [refreshing, setRefreshing] = useState(false);
 
     const tasks = getFilteredTasks();
     const stats = getStats();
@@ -25,8 +25,14 @@ export default function TasksScreen() {
         [toggleTaskComplete]
     );
 
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadMessages();
+        setRefreshing(false);
+    }, [loadMessages]);
+
     return (
-        <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+        <SafeAreaView edges={['top']} className="flex-1 bg-bg">
             <TasksHeader pending={stats.pending} completedToday={stats.completedToday} />
             <FilterPills activeFilter={filter} onFilterChange={setFilter} />
             <FlatList
@@ -37,7 +43,10 @@ export default function TasksScreen() {
                 )}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20, gap: 8 }}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7fff9e" colors={['#7fff9e']} progressBackgroundColor="#18181f" />
+                }
             />
-        </View>
+        </SafeAreaView>
     );
 }
