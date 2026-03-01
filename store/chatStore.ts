@@ -20,6 +20,8 @@ interface ChatStore {
     loadMessages: () => Promise<void>;
     addUserMessage: (text: string) => Promise<void>;
     toggleTaskComplete: (messageId: string, entryIndex: number) => void;
+    editTask: (messageId: string, entryIndex: number, updates: Partial<ParsedEntry>) => void;
+    deleteTask: (messageId: string, entryIndex: number) => void;
     addDigestMessage: (content: string) => void;
     clearMessages: () => void;
 }
@@ -199,6 +201,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     // Async update DB (fire and forget)
                     db.updateChatMessage(msg.id, { entriesJson: entriesToJson(newEntries) || undefined });
 
+                    return { ...msg, entries: newEntries };
+                }
+                return msg;
+            }),
+        }));
+    },
+
+    editTask: (messageId: string, entryIndex: number, updates: Partial<ParsedEntry>) => {
+        set((state) => ({
+            messages: state.messages.map((msg) => {
+                if (msg.id === messageId && msg.entries) {
+                    const newEntries = [...msg.entries];
+                    newEntries[entryIndex] = { ...newEntries[entryIndex], ...updates };
+                    db.updateChatMessage(msg.id, { entriesJson: entriesToJson(newEntries) || undefined });
+                    return { ...msg, entries: newEntries };
+                }
+                return msg;
+            }),
+        }));
+    },
+
+    deleteTask: (messageId: string, entryIndex: number) => {
+        set((state) => ({
+            messages: state.messages.map((msg) => {
+                if (msg.id === messageId && msg.entries) {
+                    const newEntries = [...msg.entries];
+                    newEntries[entryIndex] = { ...newEntries[entryIndex], isDeleted: true };
+                    db.updateChatMessage(msg.id, { entriesJson: entriesToJson(newEntries) || undefined });
                     return { ...msg, entries: newEntries };
                 }
                 return msg;

@@ -17,6 +17,7 @@ export interface ParsedEntry {
     priority?: 'high' | 'medium' | 'low';
     category?: string;
     isCompleted: boolean;
+    isDeleted?: boolean;
 }
 
 export interface AIResponse {

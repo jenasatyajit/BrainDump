@@ -30,7 +30,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         messages.forEach((msg) => {
             if (msg.entries) {
                 msg.entries.forEach((entry, idx) => {
-                    if (entry.type === 'task' || entry.type === 'reminder') {
+                    if ((entry.type === 'task' || entry.type === 'reminder') && !entry.isDeleted) {
                         // Normalise remindAt → dueDate so filters work uniformly
                         const normalised: ParsedEntry =
                             entry.type === 'reminder' && entry.remindAt
