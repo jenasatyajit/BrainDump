@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { NoteEntry } from '@/store/noteStore';
 
 interface NoteCardProps {
     note: NoteEntry;
     isFullWidth?: boolean;
+    onEdit?: () => void;
+    onDelete?: () => void;
 }
 
 function formatDate(date: Date): string {
@@ -17,14 +20,36 @@ function formatDate(date: Date): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function NoteCard({ note, isFullWidth }: NoteCardProps) {
+export default function NoteCard({ note, isFullWidth, onEdit, onDelete }: NoteCardProps) {
     return (
         <TouchableOpacity
             className={`rounded-2xl border border-border bg-surface2 p-3.5 ${isFullWidth ? '' : ''}`}
             activeOpacity={0.7}
             style={isFullWidth ? { width: '100%' } : { flex: 1 }}
-        >
-            <Text className="mb-2 text-[22px]">{note.emoji}</Text>
+            onPress={onEdit}>
+            <View className="mb-2 flex-row items-start justify-between">
+                <Text className="text-[22px]">{note.emoji}</Text>
+
+                <View className="flex-row gap-2">
+                    {onEdit && (
+                        <TouchableOpacity
+                            onPress={onEdit}
+                            className="p-1"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="pencil-outline" size={16} color="#7eb8ff" />
+                        </TouchableOpacity>
+                    )}
+                    {onDelete && (
+                        <TouchableOpacity
+                            onPress={onDelete}
+                            className="p-1"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="trash-outline" size={16} color="#ff7eb3" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+
             <Text className="mb-1.5 text-sm font-semibold leading-[18px] text-text" numberOfLines={2}>
                 {note.title}
             </Text>

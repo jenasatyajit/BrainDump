@@ -33,7 +33,7 @@ export const useNoteStore = create<NoteStore>(() => ({
         messages.forEach((msg) => {
             if (msg.entries) {
                 msg.entries.forEach((entry, idx) => {
-                    if (entry.type === 'note') {
+                    if (entry.type === 'note' && !entry.isDeleted) {
                         // Find the user message that triggered this note
                         const msgIndex = messages.indexOf(msg);
                         const userMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
@@ -62,7 +62,7 @@ export const useNoteStore = create<NoteStore>(() => ({
         messages.forEach((msg) => {
             if (msg.entries) {
                 msg.entries.forEach((entry) => {
-                    if (entry.type === 'note') {
+                    if (entry.type === 'note' && !entry.isDeleted) {
                         total++;
                         if (entry.category === 'Idea') ideas++;
                     }
