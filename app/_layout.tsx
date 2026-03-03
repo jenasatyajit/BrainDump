@@ -1,6 +1,5 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -50,6 +49,16 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0a0a0f' } }}>
           <Stack.Screen name="(drawer)" />
           <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
+          <Stack.Screen 
+            name="onboarding" 
+            options={{ 
+              title: 'Setup', 
+              presentation: 'card',
+              headerShown: true,
+              headerStyle: { backgroundColor: '#0a0a0f' },
+              headerTintColor: '#e8e8f0',
+            }} 
+          />
         </Stack>
         <NotificationToast />
       </SafeAreaProvider>

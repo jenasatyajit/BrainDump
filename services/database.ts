@@ -93,6 +93,26 @@ async function _doInit(): Promise<void> {
       is_deleted INTEGER DEFAULT 0,
       created_at TEXT NOT NULL
     )`);
+
+        await db.execAsync(`CREATE TABLE IF NOT EXISTS llm_config (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      provider TEXT NOT NULL DEFAULT 'gemini',
+      gemini_api_key TEXT,
+      openrouter_api_key TEXT,
+      sarvam_api_key TEXT,
+      openrouter_model TEXT DEFAULT 'meta-llama/llama-3.2-3b-instruct:free',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+        await db.execAsync(`CREATE TABLE IF NOT EXISTS app_config (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      has_seen_llm_banner INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    )`);
+
+        // Auto-migrate environment keys to database
+        await migrateEnvKeysToDatabase();
     } catch (error) {
         db = null;
         initPromise = null;
@@ -499,3 +519,238 @@ export async function clearAllData(): Promise<void> {
     await d.execAsync('DELETE FROM library_resources');
     await d.execAsync('DELETE FROM entries');
 }
+
+// ── LLM Configuration ──
+
+export interface LLMConfig {
+    id: number;
+    provider: 'gemini' | 'openrouter' | 'sarvam';
+    gemini_api_key: string | null;
+    openrouter_api_key: string | null;
+    sarvam_api_key: string | null;
+    openrouter_model: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function getLLMConfig(): Promise<LLMConfig | null> {
+    const result = await getDb().getFirstAsync<LLMConfig>('SELECT * FROM llm_config WHERE id = 1');
+    return result || null;
+}
+
+export async function saveLLMConfig(config: {
+    provider: 'gemini' | 'openrouter' | 'sarvam';
+    gemini_api_key?: string | null;
+    openrouter_api_key?: string | null;
+    sarvam_api_key?: string | null;
+    openrouter_model?: string;
+}): Promise<void> {
+    const existing = await getLLMConfig();
+    const now = new Date().toISOString();
+
+    if (existing) {
+        // Update existing config
+        const sets: string[] = ['provider = ?', 'updated_at = ?'];
+        const values: (string | null)[] = [config.provider, now];
+
+        if (config.gemini_api_key !== undefined) {
+            sets.push('gemini_api_key = ?');
+            values.push(config.gemini_api_key || null);
+        }
+        if (config.openrouter_api_key !== undefined) {
+            sets.push('openrouter_api_key = ?');
+            values.push(config.openrouter_api_key || null);
+        }
+        if (config.sarvam_api_key !== undefined) {
+            sets.push('sarvam_api_key = ?');
+            values.push(config.sarvam_api_key || null);
+        }
+        if (config.openrouter_model !== undefined) {
+            sets.push('openrouter_model = ?');
+            values.push(config.openrouter_model);
+        }
+
+        values.push('1'); // id
+        await getDb().runAsync(`UPDATE llm_config SET ${sets.join(', ')} WHERE id = ?`, ...values);
+    } else {
+        // Insert new config
+        await getDb().runAsync(
+            `INSERT INTO llm_config (id, provider, gemini_api_key, openrouter_api_key, sarvam_api_key, openrouter_model, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            1,
+            config.provider,
+            config.gemini_api_key || null,
+            config.openrouter_api_key || null,
+            config.sarvam_api_key || null,
+            config.openrouter_model || 'meta-llama/llama-3.2-3b-instruct:free',
+            now,
+            now
+        );
+    }
+}
+
+export async function getHasSeenLLMBanner(): Promise<boolean> {
+    const result = await getDb().getFirstAsync<{ has_seen_llm_banner: number }>(
+        'SELECT has_seen_llm_banner FROM app_config WHERE id = 1'
+    );
+    return result?.has_seen_llm_banner === 1;
+}
+
+export async function setHasSeenLLMBanner(): Promise<void> {
+    const existing = await getDb().getFirstAsync<{ id: number }>(
+        'SELECT id FROM app_config WHERE id = 1'
+    );
+
+    if (existing) {
+        await getDb().runAsync('UPDATE app_config SET has_seen_llm_banner = 1 WHERE id = 1');
+    } else {
+        await getDb().runAsync(
+            'INSERT INTO app_config (id, has_seen_llm_banner, created_at) VALUES (?, ?, ?)',
+            1,
+            1,
+            new Date().toISOString()
+        );
+    }
+}
+
+/**
+ * Debug utility: Force re-migration of environment keys
+ * Call this manually if keys aren't being detected
+ */
+export async function forceMigration(): Promise<void> {
+    console.log('[database] ═══ FORCE MIGRATION STARTED ═══');
+    await migrateEnvKeysToDatabase();
+    console.log('[database] ═══ FORCE MIGRATION COMPLETE ═══');
+}
+
+/**
+ * Debug utility: Clear LLM config and re-migrate
+ */
+export async function resetLLMConfig(): Promise<void> {
+    console.log('[database] Resetting LLM config...');
+    await getDb().runAsync('DELETE FROM llm_config WHERE id = 1');
+    await migrateEnvKeysToDatabase();
+    const config = await getLLMConfig();
+    console.log('[database] Reset complete. New config:', config);
+}
+
+async function migrateEnvKeysToDatabase(): Promise<void> {
+    try {
+        console.log('[database] ═══ Starting migration ═══');
+        
+        // Check if config already exists
+        const existing = await getLLMConfig();
+        
+        // Get keys from environment variables (filter out empty strings)
+        const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() || null;
+        const openrouterKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY?.trim() || null;
+        const sarvamKey = process.env.EXPO_PUBLIC_SARVAM_API_KEY?.trim() || null;
+
+        console.log('[database] Environment variables check:', {
+            EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY ? `${process.env.EXPO_PUBLIC_GEMINI_API_KEY.substring(0, 10)}...` : 'undefined',
+            EXPO_PUBLIC_OPENROUTER_API_KEY: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ? `${process.env.EXPO_PUBLIC_OPENROUTER_API_KEY.substring(0, 10)}...` : 'undefined',
+            EXPO_PUBLIC_SARVAM_API_KEY: process.env.EXPO_PUBLIC_SARVAM_API_KEY ? `${process.env.EXPO_PUBLIC_SARVAM_API_KEY.substring(0, 10)}...` : 'undefined',
+        });
+
+        console.log('[database] Parsed keys:', {
+            hasGemini: !!geminiKey,
+            hasOpenrouter: !!openrouterKey,
+            hasSarvam: !!sarvamKey,
+            geminiKeyLength: geminiKey?.length || 0,
+            openrouterKeyLength: openrouterKey?.length || 0,
+            sarvamKeyLength: sarvamKey?.length || 0,
+        });
+
+        if (existing) {
+            // Config exists - check if we need to update missing keys
+            console.log('[database] Existing LLM config found:', {
+                provider: existing.provider,
+                hasGemini: !!existing.gemini_api_key,
+                hasOpenrouter: !!existing.openrouter_api_key,
+                hasSarvam: !!existing.sarvam_api_key,
+                geminiKeyLength: existing.gemini_api_key?.length || 0,
+                openrouterKeyLength: existing.openrouter_api_key?.length || 0,
+                sarvamKeyLength: existing.sarvam_api_key?.length || 0,
+            });
+
+            // Update missing keys from environment
+            let needsUpdate = false;
+            const updates: any = { provider: existing.provider };
+
+            if (!existing.gemini_api_key && geminiKey) {
+                updates.gemini_api_key = geminiKey;
+                needsUpdate = true;
+                console.log('[database] → Will add missing Gemini key from .env');
+            }
+            if (!existing.openrouter_api_key && openrouterKey) {
+                updates.openrouter_api_key = openrouterKey;
+                needsUpdate = true;
+                console.log('[database] → Will add missing OpenRouter key from .env');
+            }
+            if (!existing.sarvam_api_key && sarvamKey) {
+                updates.sarvam_api_key = sarvamKey;
+                needsUpdate = true;
+                console.log('[database] → Will add missing Sarvam key from .env');
+            }
+
+            if (needsUpdate) {
+                console.log('[database] Updating config with:', updates);
+                await saveLLMConfig(updates);
+                
+                // Verify the update
+                const updated = await getLLMConfig();
+                console.log('[database] ✓ Config updated. Verification:', {
+                    hasGemini: !!updated?.gemini_api_key,
+                    hasOpenrouter: !!updated?.openrouter_api_key,
+                    hasSarvam: !!updated?.sarvam_api_key,
+                    geminiValue: updated?.gemini_api_key ? `${updated.gemini_api_key.substring(0, 10)}...` : 'null',
+                    openrouterValue: updated?.openrouter_api_key ? `${updated.openrouter_api_key.substring(0, 10)}...` : 'null',
+                    sarvamValue: updated?.sarvam_api_key ? `${updated.sarvam_api_key.substring(0, 10)}...` : 'null',
+                });
+                console.log('[database] Full updated config:', updated);
+            } else {
+                console.log('[database] LLM config is complete, no updates needed');
+            }
+            return;
+        }
+
+        // No existing config - create new one
+        console.log('[database] No existing config found, creating new one');
+        
+        // Only migrate if at least one key exists
+        if (geminiKey || openrouterKey || sarvamKey) {
+            const newConfig = {
+                provider: 'gemini' as const, // Default to Gemini
+                gemini_api_key: geminiKey,
+                openrouter_api_key: openrouterKey,
+                sarvam_api_key: sarvamKey,
+                openrouter_model: 'meta-llama/llama-3.2-3b-instruct:free',
+            };
+            
+            console.log('[database] Creating config with:', {
+                provider: newConfig.provider,
+                hasGemini: !!newConfig.gemini_api_key,
+                hasOpenrouter: !!newConfig.openrouter_api_key,
+                hasSarvam: !!newConfig.sarvam_api_key,
+            });
+            
+            await saveLLMConfig(newConfig);
+            
+            // Verify the creation
+            const created = await getLLMConfig();
+            console.log('[database] ✓ Config created. Verification:', {
+                hasGemini: !!created?.gemini_api_key,
+                hasOpenrouter: !!created?.openrouter_api_key,
+                hasSarvam: !!created?.sarvam_api_key,
+            });
+        } else {
+            console.warn('[database] ⚠ No API keys found in environment variables');
+        }
+        
+        console.log('[database] ═══ Migration complete ═══');
+    } catch (error) {
+        console.error('[database] ✗ Migration failed:', error);
+        // Don't throw - migration failure shouldn't break app initialization
+    }
+}
+

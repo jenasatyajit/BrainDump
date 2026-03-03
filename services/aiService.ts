@@ -1,11 +1,11 @@
 /**
- * AI Service — Gemini-powered intent detection with local fallback
+ * AI Service — Multi-provider intent detection with local fallback
  *
- * Primary: Calls Gemini 3 Flash to classify user text
- * Fallback: Local keyword/pattern matching if API fails
+ * Primary: Calls configured LLM provider (Gemini/OpenRouter/Sarvam)
+ * Fallback: Local keyword/pattern matching if all providers fail
  */
 
-import { callGeminiWithRetry } from './geminiService';
+import { callWithAutoFallback } from './llmService';
 
 // ── Types (unchanged, used by the rest of the app) ──
 
@@ -29,6 +29,8 @@ export interface ParsedEntry {
 export interface AIResponse {
     reply: string;
     entries: ParsedEntry[];
+    usedProvider?: string;
+    usedModel?: string;
 }
 
 // ── Gemini Prompt Builder ──
@@ -139,30 +141,51 @@ interface GeminiCategorizeResponse {
 }
 
 function parseGeminiResponse(raw: string): AIResponse {
-    const parsed: GeminiCategorizeResponse = JSON.parse(raw);
+    try {
+        console.log('[aiService] Parsing response, first 200 chars:', raw.substring(0, 200));
+        const parsed: GeminiCategorizeResponse = JSON.parse(raw);
 
-    if (!parsed.entries || !Array.isArray(parsed.entries) || parsed.entries.length === 0) {
-        throw new Error('Invalid response: no entries array');
+        if (!parsed.entries || !Array.isArray(parsed.entries)) {
+            console.error('[aiService] Invalid response structure:', {
+                hasEntries: !!parsed.entries,
+                isArray: Array.isArray(parsed.entries),
+                rawResponse: raw.substring(0, 500),
+            });
+            throw new Error('Invalid response: no entries array');
+        }
+
+        // Empty entries array is valid for greetings/questions
+        if (parsed.entries.length === 0) {
+            console.log('[aiService] Empty entries array - likely a greeting or question');
+            return {
+                reply: parsed.reply || "I'm here to help! You can tell me about tasks, notes, reminders, or things to save.",
+                entries: [],
+            };
+        }
+
+        const entries: ParsedEntry[] = parsed.entries.map((e) => ({
+            type: e.type || 'note',
+            title: e.title || 'Untitled',
+            dueDate: e.due_date || undefined,
+            remindAt: e.remind_at || undefined,
+            priority: e.priority || 'low',
+            category: e.category || undefined,
+            isCompleted: false,
+            libraryType: e.library_type || undefined,
+            author: e.author || undefined,
+            url: e.url || undefined,
+            platform: e.platform || undefined,
+        }));
+
+        return {
+            reply: parsed.reply || generateFallbackReply(entries),
+            entries,
+        };
+    } catch (error) {
+        console.error('[aiService] Failed to parse response:', error);
+        console.error('[aiService] Raw response:', raw);
+        throw error;
     }
-
-    const entries: ParsedEntry[] = parsed.entries.map((e) => ({
-        type: e.type || 'note',
-        title: e.title || 'Untitled',
-        dueDate: e.due_date || undefined,
-        remindAt: e.remind_at || undefined,
-        priority: e.priority || 'low',
-        category: e.category || undefined,
-        isCompleted: false,
-        libraryType: e.library_type || undefined,
-        author: e.author || undefined,
-        url: e.url || undefined,
-        platform: e.platform || undefined,
-    }));
-
-    return {
-        reply: parsed.reply || generateFallbackReply(entries),
-        entries,
-    };
 }
 
 function generateFallbackReply(entries: ParsedEntry[]): string {
@@ -277,19 +300,24 @@ function localClassify(text: string): ParsedEntry[] {
 // ══════════════════════════════════════════════════
 
 /**
- * Classify user text via Gemini API, falling back to local classifier on failure.
+ * Classify user text via configured LLM provider, falling back to local classifier on failure.
  */
 export async function classifyMessage(text: string): Promise<AIResponse> {
     try {
-        const raw = await callGeminiWithRetry({
+        const { response, usedProvider, usedModel } = await callWithAutoFallback({
             systemPrompt: buildCategorizationPrompt(),
             userMessage: text,
             jsonMode: true,
         });
 
-        return parseGeminiResponse(raw);
+        const parsed = parseGeminiResponse(response.text);
+        return {
+            ...parsed,
+            usedProvider,
+            usedModel,
+        };
     } catch (error) {
-        console.warn('[aiService] Gemini failed, using local fallback:', error instanceof Error ? error.message : error);
+        console.warn('[aiService] All LLM providers failed, using local fallback:', error instanceof Error ? error.message : error);
 
         // Local fallback
         const entries = localClassify(text);
@@ -301,29 +329,34 @@ export async function classifyMessage(text: string): Promise<AIResponse> {
 }
 
 /**
- * Correct a previous classification via Gemini.
+ * Correct a previous classification via configured LLM provider.
  */
 export async function correctClassification(
     originalText: string,
     correctionText: string
 ): Promise<AIResponse> {
     try {
-        const raw = await callGeminiWithRetry({
+        const { response, usedProvider, usedModel } = await callWithAutoFallback({
             systemPrompt: buildCorrectionPrompt(),
             userMessage: `Original: ${originalText} | Correction: ${correctionText}. Re-parse with correction applied.`,
             jsonMode: true,
         });
 
-        return parseGeminiResponse(raw);
+        const parsed = parseGeminiResponse(response.text);
+        return {
+            ...parsed,
+            usedProvider,
+            usedModel,
+        };
     } catch (error) {
-        console.warn('[aiService] Correction via Gemini failed:', error instanceof Error ? error.message : error);
+        console.warn('[aiService] Correction via LLM failed:', error instanceof Error ? error.message : error);
         // On correction failure, just reclassify the correction text
         return classifyMessage(correctionText);
     }
 }
 
 /**
- * Generate a daily digest summary via Gemini.
+ * Generate a daily digest summary via configured LLM provider.
  */
 export async function generateDigest(data: {
     tasksAdded: string[];
@@ -342,15 +375,15 @@ export async function generateDigest(data: {
 - Reminders for tomorrow: ${remindersTomorrow.length > 0 ? remindersTomorrow.join(', ') : 'none'}`;
 
     try {
-        const digest = await callGeminiWithRetry({
+        const { response } = await callWithAutoFallback({
             systemPrompt: buildDigestPrompt(),
             userMessage,
             jsonMode: false,
         });
 
-        return digest.trim();
+        return response.text.trim();
     } catch (error) {
-        console.warn('[aiService] Digest via Gemini failed:', error instanceof Error ? error.message : error);
+        console.warn('[aiService] Digest via LLM failed:', error instanceof Error ? error.message : error);
 
         // Local fallback digest
         const parts: string[] = [];

@@ -18,6 +18,7 @@ interface ChatStore {
     messages: ChatMessage[];
     isProcessing: boolean;
     isLoaded: boolean;
+    lastUsedProvider: string | null;
     loadMessages: () => Promise<void>;
     addUserMessage: (text: string) => Promise<void>;
     toggleTaskComplete: (messageId: string, entryIndex: number) => void;
@@ -138,6 +139,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     messages: [],
     isProcessing: false,
     isLoaded: false,
+    lastUsedProvider: null,
 
     loadMessages: async () => {
         try {
@@ -222,6 +224,47 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 createdAt: aiMsg.createdAt,
             });
 
+            // Check if provider changed and add system message if needed
+            const currentProvider = response.usedProvider;
+            const lastProvider = get().lastUsedProvider;
+
+            if (currentProvider && lastProvider && currentProvider !== lastProvider) {
+                // Provider changed - add system message
+                const systemMsgId = generateId();
+                const providerName = response.usedModel 
+                    ? `${currentProvider} (${response.usedModel})`
+                    : currentProvider;
+                
+                const systemMsg: ChatMessage = {
+                    id: systemMsgId,
+                    role: 'system',
+                    content: `Switched to ${providerName} — ${lastProvider} unavailable.`,
+                    createdAt: new Date(),
+                };
+
+                await db.saveChatMessage({
+                    id: systemMsg.id,
+                    role: systemMsg.role,
+                    content: systemMsg.content,
+                    createdAt: systemMsg.createdAt,
+                });
+
+                set((state) => ({
+                    messages: [
+                        ...state.messages.map((msg) => (msg.id === thinkingId ? aiMsg : msg)),
+                        systemMsg,
+                    ],
+                    isProcessing: false,
+                    lastUsedProvider: currentProvider,
+                }));
+            } else {
+                set((state) => ({
+                    messages: state.messages.map((msg) => (msg.id === thinkingId ? aiMsg : msg)),
+                    isProcessing: false,
+                    lastUsedProvider: currentProvider || lastProvider,
+                }));
+            }
+
             // Save entries to their respective tables
             const entryId = await db.saveEntry(text);
             for (const entry of response.entries) {
@@ -240,11 +283,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     await handleLibraryResource(entry, entryId);
                 }
             }
-
-            set((state) => ({
-                messages: state.messages.map((msg) => (msg.id === thinkingId ? aiMsg : msg)),
-                isProcessing: false,
-            }));
         } catch {
             const errorMsg: ChatMessage = {
                 id: thinkingId,
