@@ -17,7 +17,13 @@
       "expo-router",
       "expo-sqlite",
       "@react-native-community/datetimepicker",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Brain Dump to access your microphone for voice input."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -36,12 +42,18 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.satya.braindump"
+      "bundleIdentifier": "com.satya.braindump",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Allow Brain Dump to access your microphone for voice input."
+      }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.satya.braindump",
       "versionCode": 2,
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f0f0f"
