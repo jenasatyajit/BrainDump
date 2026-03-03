@@ -9,6 +9,7 @@ const tabs = [
     { name: 'index', label: 'Inbox', icon: 'chatbubble-outline' as const, activeIcon: 'chatbubble' as const },
     { name: 'tasks', label: 'Tasks', icon: 'checkbox-outline' as const, activeIcon: 'checkbox' as const, badge: true },
     { name: 'notes', label: 'Notes', icon: 'document-text-outline' as const, activeIcon: 'document-text' as const },
+    { name: 'library', label: 'Library', icon: 'book-outline' as const, activeIcon: 'book' as const },
 ];
 
 export default function TabBar({ state, navigation }: BottomTabBarProps) {

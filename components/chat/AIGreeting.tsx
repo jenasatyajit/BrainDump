@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 
-export default function AIGreeting() {
+function AIGreeting() {
     return (
         <View
             className="rounded-[20px] rounded-bl-[4px] border border-accent/15 p-3.5 px-4"
@@ -19,3 +19,5 @@ export default function AIGreeting() {
         </View>
     );
 }
+
+export default React.memo(AIGreeting);

@@ -27,6 +27,12 @@ const TYPE_STYLES = {
         tagColor: '#ff7eb3',
         label: 'REMINDER',
     },
+    library: {
+        bg: 'rgba(167,139,250,0.07)',
+        border: 'rgba(167,139,250,0.2)',
+        tagColor: '#a78bfa',
+        label: 'LIBRARY',
+    },
 };
 
 function formatMeta(entry: ParsedEntry): string {
@@ -51,6 +57,19 @@ function formatMeta(entry: ParsedEntry): string {
         parts.push(isTomorrow ? `Tomorrow · ${timeStr}` : `Today · ${timeStr}`);
     }
 
+    if (entry.type === 'library') {
+        if (entry.libraryType === 'book') {
+            parts.push('� Book');
+            if (entry.author) parts.push(entry.author);
+        } else if (entry.libraryType === 'video') {
+            if (entry.platform === 'youtube') parts.push('📺 YouTube');
+            else if (entry.platform === 'instagram') parts.push('📱 Instagram');
+            else parts.push('🎬 Video');
+        } else if (entry.libraryType === 'article') {
+            parts.push('📰 Article');
+        }
+    }
+
     if (entry.priority === 'high') parts.push('🟡 High priority');
     else if (entry.priority === 'medium') parts.push('Medium');
 
@@ -63,15 +82,20 @@ function formatMeta(entry: ParsedEntry): string {
         return parts.filter((p) => p !== '🟡 High priority').join(' · ') + ' · 🔴 Overdue';
     }
 
-    return parts.join(' · ') || (entry.type === 'task' ? 'Tap to complete' : 'Today');
+    return parts.join(' · ') || (entry.type === 'task' ? 'Tap to complete' : 'Saved');
 }
 
 export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps) {
     const style = TYPE_STYLES[entry.type];
-    const categoryLabel =
-        entry.type === 'note' && entry.category ? `${style.label} — ${entry.category.toUpperCase()}` : style.label;
+    
+    let categoryLabel = style.label;
+    if (entry.type === 'note' && entry.category) {
+        categoryLabel = `${style.label} — ${entry.category.toUpperCase()}`;
+    } else if (entry.type === 'library' && entry.libraryType) {
+        categoryLabel = `${style.label} — ${entry.libraryType.toUpperCase()}`;
+    }
 
-    const CardContent = () => (
+    const CardContent = React.memo(() => (
         <>
             <View className="mb-1.5 flex-row items-center gap-1.5">
                 <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: style.tagColor }} />
@@ -86,7 +110,7 @@ export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps)
             </Text>
             <Text className="mt-1 text-xs text-muted">{formatMeta(entry)}</Text>
         </>
-    );
+    ));
 
     if (entry.type === 'task') {
         return (

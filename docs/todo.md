@@ -1,0 +1,3 @@
+- [ ] BYOK option
+- [ ] different AI provider : gemini, sarvam or openrouter
+- [ ] resource tab

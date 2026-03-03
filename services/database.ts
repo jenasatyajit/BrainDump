@@ -74,6 +74,25 @@ async function _doInit(): Promise<void> {
       is_digest INTEGER DEFAULT 0,
       created_at TEXT NOT NULL
     )`);
+
+        await db.execAsync(`CREATE TABLE IF NOT EXISTS library_resources (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT REFERENCES entries(id),
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      author TEXT,
+      cover_url TEXT,
+      cover_local_path TEXT,
+      isbn TEXT,
+      video_url TEXT,
+      video_platform TEXT,
+      thumbnail_url TEXT,
+      duration TEXT,
+      article_url TEXT,
+      domain TEXT,
+      is_deleted INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    )`);
     } catch (error) {
         db = null;
         initPromise = null;
@@ -297,9 +316,154 @@ export async function getReminders(includeDeleted = false): Promise<DbReminder[]
     );
 }
 
+// ── Library Resources ──
+
+export interface DbLibraryResource {
+    id: string;
+    entry_id: string | null;
+    type: 'book' | 'video' | 'article';
+    title: string;
+    author: string | null;
+    cover_url: string | null;
+    cover_local_path: string | null;
+    isbn: string | null;
+    video_url: string | null;
+    video_platform: string | null;
+    thumbnail_url: string | null;
+    duration: string | null;
+    article_url: string | null;
+    domain: string | null;
+    is_deleted: number;
+    created_at: string;
+}
+
+export async function saveLibraryResource(resource: {
+    entryId?: string;
+    type: 'book' | 'video' | 'article';
+    title: string;
+    author?: string;
+    coverUrl?: string;
+    coverLocalPath?: string;
+    isbn?: string;
+    videoUrl?: string;
+    videoPlatform?: string;
+    thumbnailUrl?: string;
+    duration?: string;
+    articleUrl?: string;
+    domain?: string;
+}): Promise<string> {
+    const id = generateId();
+    await getDb().runAsync(
+        `INSERT INTO library_resources (
+      id, entry_id, type, title, author, cover_url, cover_local_path, isbn,
+      video_url, video_platform, thumbnail_url, duration, article_url, domain, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        resource.entryId || null,
+        resource.type,
+        resource.title,
+        resource.author || null,
+        resource.coverUrl || null,
+        resource.coverLocalPath || null,
+        resource.isbn || null,
+        resource.videoUrl || null,
+        resource.videoPlatform || null,
+        resource.thumbnailUrl || null,
+        resource.duration || null,
+        resource.articleUrl || null,
+        resource.domain || null,
+        new Date().toISOString()
+    );
+    return id;
+}
+
+export async function getLibraryResources(includeDeleted = false): Promise<DbLibraryResource[]> {
+    const where = includeDeleted ? '' : 'WHERE is_deleted = 0';
+    return await getDb().getAllAsync<DbLibraryResource>(
+        `SELECT * FROM library_resources ${where} ORDER BY created_at DESC`
+    );
+}
+
+export async function updateLibraryResource(
+    id: string,
+    updates: {
+        title?: string;
+        author?: string;
+        coverUrl?: string;
+        coverLocalPath?: string;
+        isbn?: string;
+        videoUrl?: string;
+        videoPlatform?: string;
+        thumbnailUrl?: string;
+        duration?: string;
+        articleUrl?: string;
+        domain?: string;
+    }
+): Promise<void> {
+    const sets: string[] = [];
+    const values: (string | null)[] = [];
+
+    if (updates.title !== undefined) {
+        sets.push('title = ?');
+        values.push(updates.title);
+    }
+    if (updates.author !== undefined) {
+        sets.push('author = ?');
+        values.push(updates.author);
+    }
+    if (updates.coverUrl !== undefined) {
+        sets.push('cover_url = ?');
+        values.push(updates.coverUrl);
+    }
+    if (updates.coverLocalPath !== undefined) {
+        sets.push('cover_local_path = ?');
+        values.push(updates.coverLocalPath);
+    }
+    if (updates.isbn !== undefined) {
+        sets.push('isbn = ?');
+        values.push(updates.isbn);
+    }
+    if (updates.videoUrl !== undefined) {
+        sets.push('video_url = ?');
+        values.push(updates.videoUrl);
+    }
+    if (updates.videoPlatform !== undefined) {
+        sets.push('video_platform = ?');
+        values.push(updates.videoPlatform);
+    }
+    if (updates.thumbnailUrl !== undefined) {
+        sets.push('thumbnail_url = ?');
+        values.push(updates.thumbnailUrl);
+    }
+    if (updates.duration !== undefined) {
+        sets.push('duration = ?');
+        values.push(updates.duration);
+    }
+    if (updates.articleUrl !== undefined) {
+        sets.push('article_url = ?');
+        values.push(updates.articleUrl);
+    }
+    if (updates.domain !== undefined) {
+        sets.push('domain = ?');
+        values.push(updates.domain);
+    }
+
+    if (sets.length === 0) return;
+
+    values.push(id);
+    await getDb().runAsync(
+        `UPDATE library_resources SET ${sets.join(', ')} WHERE id = ?`,
+        ...values
+    );
+}
+
+export async function deleteLibraryResource(id: string): Promise<void> {
+    await getDb().runAsync('UPDATE library_resources SET is_deleted = 1 WHERE id = ?', id);
+}
+
 // ── Soft Delete ──
 
-export async function softDelete(table: 'entries' | 'tasks' | 'notes' | 'reminders', id: string): Promise<void> {
+export async function softDelete(table: 'entries' | 'tasks' | 'notes' | 'reminders' | 'library_resources', id: string): Promise<void> {
     await getDb().runAsync(`UPDATE ${table} SET is_deleted = 1 WHERE id = ?`, id);
 }
 
@@ -311,6 +475,7 @@ export async function exportAllData(): Promise<{
     notes: DbNote[];
     reminders: DbReminder[];
     chatMessages: DbChatMessage[];
+    libraryResources: DbLibraryResource[];
 }> {
     const d = getDb();
     return {
@@ -319,6 +484,7 @@ export async function exportAllData(): Promise<{
         notes: await d.getAllAsync<DbNote>('SELECT * FROM notes'),
         reminders: await d.getAllAsync<DbReminder>('SELECT * FROM reminders'),
         chatMessages: await d.getAllAsync<DbChatMessage>('SELECT * FROM chat_messages'),
+        libraryResources: await d.getAllAsync<DbLibraryResource>('SELECT * FROM library_resources'),
     };
 }
 
@@ -330,5 +496,6 @@ export async function clearAllData(): Promise<void> {
     await d.execAsync('DELETE FROM tasks');
     await d.execAsync('DELETE FROM notes');
     await d.execAsync('DELETE FROM reminders');
+    await d.execAsync('DELETE FROM library_resources');
     await d.execAsync('DELETE FROM entries');
 }

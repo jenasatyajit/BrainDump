@@ -10,7 +10,7 @@ import { callGeminiWithRetry } from './geminiService';
 // ── Types (unchanged, used by the rest of the app) ──
 
 export interface ParsedEntry {
-    type: 'task' | 'note' | 'reminder';
+    type: 'task' | 'note' | 'reminder' | 'library';
     title: string;
     dueDate?: string;
     remindAt?: string;
@@ -18,6 +18,12 @@ export interface ParsedEntry {
     category?: string;
     isCompleted: boolean;
     isDeleted?: boolean;
+    
+    // Library fields
+    libraryType?: 'book' | 'video' | 'article';
+    author?: string;
+    url?: string;
+    platform?: 'youtube' | 'instagram';
 }
 
 export interface AIResponse {
@@ -40,18 +46,27 @@ Response schema:
 {
   "entries": [
     {
-      "type": "task" | "note" | "reminder",
+      "type": "task" | "note" | "reminder" | "library",
       "title": "string — concise title extracted from user text",
       "due_date": "YYYY-MM-DD or null",
       "remind_at": "ISO8601 datetime or null",
       "priority": "high" | "medium" | "low",
-      "category": "string — e.g. Idea, Meeting, Work, Personal, General (for notes only, null for tasks/reminders)"
+      "category": "string — e.g. Idea, Meeting, Work, Personal, General (for notes only, null for tasks/reminders/library)",
+      "library_type": "book" | "video" | "article" (only for type: "library"),
+      "author": "string or null" (only for library books),
+      "url": "string or null" (only for library videos/articles),
+      "platform": "youtube" | "instagram" | null (only for library videos)
     }
   ],
   "reply": "string — short 1-sentence conversational response to the user about what you parsed"
 }
 
 Classification rules:
+- LIBRARY RESOURCES (highest priority):
+  * YouTube URL (youtube.com, youtu.be) → type: "library", library_type: "video", platform: "youtube", url: <full_url>
+  * Instagram video URL (instagram.com/p/, instagram.com/reel/) → type: "library", library_type: "video", platform: "instagram", url: <full_url>
+  * Article URL (http://, https://) → type: "library", library_type: "article", url: <full_url>
+  * Book mention (e.g., "read X", "book: X", "reading X") → type: "library", library_type: "book", title: <book_title>, extract author if mentioned
 - STRICT OVERRIDES:
   * If the text starts with "Note: " or "Idea — ", it MUST be type: "note".
   * If the text starts with "Task: ", it MUST be type: "task".
@@ -65,7 +80,7 @@ Classification rules:
 - For remind_at, parse time expressions into full ISO8601 datetime
 - For priority: urgent/asap/critical → high, this week/soon → medium, else → low
 - For category on notes: detect the theme (Idea, Meeting, Reading, Goal, Project, Research, General)
-- reply should be short and conversational — e.g. "Got it. Parsed as a reminder." or "Two tasks detected."`;
+- reply should be short and conversational — e.g. "Got it. Saved that video." or "Book added to your library."`;
 }
 
 function buildDigestPrompt(): string {
@@ -109,12 +124,16 @@ Response schema:
 
 interface GeminiCategorizeResponse {
     entries: {
-        type: 'task' | 'note' | 'reminder';
+        type: 'task' | 'note' | 'reminder' | 'library';
         title: string;
         due_date?: string | null;
         remind_at?: string | null;
         priority?: 'high' | 'medium' | 'low';
         category?: string | null;
+        library_type?: 'book' | 'video' | 'article';
+        author?: string | null;
+        url?: string | null;
+        platform?: 'youtube' | 'instagram' | null;
     }[];
     reply: string;
 }
@@ -134,6 +153,10 @@ function parseGeminiResponse(raw: string): AIResponse {
         priority: e.priority || 'low',
         category: e.category || undefined,
         isCompleted: false,
+        libraryType: e.library_type || undefined,
+        author: e.author || undefined,
+        url: e.url || undefined,
+        platform: e.platform || undefined,
     }));
 
     return {
@@ -152,6 +175,11 @@ function generateFallbackReply(entries: ParsedEntry[]): string {
             return 'Detected a task. Added to your queue.';
         case 'reminder':
             return 'Got it. Saved as a reminder.';
+        case 'library':
+            if (entries[0].libraryType === 'book') return 'Book added to your library.';
+            if (entries[0].libraryType === 'video') return 'Video saved to your library.';
+            if (entries[0].libraryType === 'article') return 'Article saved to your library.';
+            return 'Added to your library.';
         case 'note':
             return "Saved as a note. I'll look for related entries.";
     }
@@ -160,6 +188,8 @@ function generateFallbackReply(entries: ParsedEntry[]): string {
 // ══════════════════════════════════════════════════
 // LOCAL FALLBACK — keyword-matching (kept for offline/error scenarios)
 // ══════════════════════════════════════════════════
+
+import { detectResourceType, extractBookTitle, extractVideoId } from './libraryService';
 
 const REMINDER_PATTERNS = [
     /\bremind\s*(me)?\b/i, /\btomorrow\b/i, /\btmr\b/i, /\btonight\b/i,
@@ -176,8 +206,50 @@ const TASK_PATTERNS = [
 function localClassify(text: string): ParsedEntry[] {
     const title = text.charAt(0).toUpperCase() + text.slice(1);
     const shortTitle = title.length > 80 ? title.substring(0, 77) + '...' : title;
-
     const lower = text.trim().toLowerCase();
+
+    // Check for library resources first (highest priority)
+    const resourceType = detectResourceType(text);
+    
+    if (resourceType === 'video') {
+        const { platform, id } = extractVideoId(text);
+        if (platform && id) {
+            return [{
+                type: 'library',
+                libraryType: 'video',
+                title: `${platform === 'youtube' ? 'YouTube' : 'Instagram'} Video`,
+                url: text.trim(),
+                platform,
+                isCompleted: false,
+            }];
+        }
+    }
+    
+    if (resourceType === 'article') {
+        // Extract URL from text
+        const urlMatch = text.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+            return [{
+                type: 'library',
+                libraryType: 'article',
+                title: 'Article',
+                url: urlMatch[1],
+                isCompleted: false,
+            }];
+        }
+    }
+    
+    if (resourceType === 'book') {
+        const bookTitle = extractBookTitle(text);
+        return [{
+            type: 'library',
+            libraryType: 'book',
+            title: bookTitle,
+            isCompleted: false,
+        }];
+    }
+
+    // Original classification logic
     if (lower.startsWith('note:') || lower.startsWith('idea —')) {
         return [{ type: 'note', title: shortTitle, category: 'General', isCompleted: false }];
     }

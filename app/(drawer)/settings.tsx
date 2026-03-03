@@ -7,6 +7,7 @@ import { clearAllData } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
 import { supabase } from '@/utils/supabase';
 import type { User } from '@supabase/supabase-js';
+import appConfig from '@/app.json';
 
 export default function SettingsScreen() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -204,7 +205,7 @@ export default function SettingsScreen() {
             <View className="rounded-2xl border border-border bg-surface2 p-4">
                 <View className="flex-row items-center justify-between">
                     <Text className="text-sm text-text">Version</Text>
-                    <Text className="text-sm text-muted">1.0.0</Text>
+                    <Text className="text-sm text-muted">{appConfig.expo.version}</Text>
                 </View>
                 <View className="my-3 h-px bg-border" />
                 <View className="flex-row items-center justify-between">

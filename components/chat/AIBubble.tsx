@@ -11,7 +11,7 @@ interface AIBubbleProps {
     onToggleTask?: (messageId: string, entryIndex: number) => void;
 }
 
-export default function AIBubble({
+function AIBubble({
     content,
     entries,
     isDigest,
@@ -49,3 +49,5 @@ export default function AIBubble({
         </View>
     );
 }
+
+export default React.memo(AIBubble);

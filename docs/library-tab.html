@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sphura — Library v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090e;
+    --surface: #111116;
+    --surface2: #17171f;
+    --surface3: #1e1e28;
+    --border: #1f1f2e;
+    --border2: #2a2a3a;
+    --text: #e2e2f0;
+    --muted: #52526e;
+    --muted2: #3a3a52;
+    --book: #f59e6a;
+    --book-bg: rgba(245,158,106,0.08);
+    --book-border: rgba(245,158,106,0.22);
+    --video: #7eb8ff;
+    --video-bg: rgba(126,184,255,0.08);
+    --video-border: rgba(126,184,255,0.22);
+    --article: #a78bfa;
+    --article-bg: rgba(167,139,250,0.08);
+    --article-border: rgba(167,139,250,0.22);
+    --accent: #7fff9e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050508;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--surface);
+    border-radius: 44px;
+    border: 1.5px solid var(--border2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 50px 140px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  }
+
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: var(--bg);
+    border-radius: 0 0 20px 20px;
+    z-index: 10;
+  }
+
+  .statusbar {
+    padding: 14px 28px 0;
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 14px 22px 0;
+    flex-shrink: 0;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-top: 4px;
+  }
+
+  .header-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── STAT CHIPS — THE SINGLE FILTER ── */
+  .stat-chips {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  /* "All" pill */
+  .all-chip {
+    padding: 0 16px;
+    height: 72px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .all-chip.active {
+    background: rgba(127,255,158,0.07);
+    border-color: rgba(127,255,158,0.3);
+  }
+
+  .all-chip .all-count {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .all-chip.active .all-count { color: var(--accent); }
+
+  .all-chip .all-label {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Type chips */
+  .type-chip {
+    flex: 1;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    border-radius: 18px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Active glow strip at bottom */
+  .type-chip::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 16px; right: 16px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--chip-color);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .type-chip.active {
+    border-color: var(--chip-border);
+    background: var(--chip-bg);
+  }
+
+  .type-chip.active::after { opacity: 1; }
+
+  .type-chip:hover:not(.active) { transform: translateY(-1px); }
+
+  .chip-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .chip-emoji { font-size: 18px; }
+
+  .chip-count {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--chip-color);
+    line-height: 1;
+  }
+
+  .chip-label {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .type-chip.books  { --chip-color: var(--book);    --chip-bg: var(--book-bg);    --chip-border: var(--book-border); }
+  .type-chip.videos { --chip-color: var(--video);   --chip-bg: var(--video-bg);   --chip-border: var(--video-border); }
+  .type-chip.articles { --chip-color: var(--article); --chip-bg: var(--article-bg); --chip-border: var(--article-border); }
+
+  /* ── CONTENT ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 22px 12px;
+    scrollbar-width: none;
+  }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* ── SECTION HEADER ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    margin-top: 2px;
+  }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .section-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .see-all {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .see-all:hover { color: var(--accent); }
+
+  /* ── BOOKS — Horizontal scroll ── */
+  .books-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 22px;
+    scrollbar-width: none;
+  }
+  .books-scroll::-webkit-scrollbar { display: none; }
+
+  .book-card {
+    flex-shrink: 0;
+    width: 118px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .book-card:hover { transform: translateY(-3px); border-color: var(--book-border); }
+
+  .book-spine {
+    height: 144px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 34px;
+    position: relative;
+  }
+  .book-spine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.5));
+  }
+
+  .book-info { padding: 10px; }
+
+  .book-title {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Syne', sans-serif;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .book-author { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  .book-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 6px;
+    padding: 3px 7px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+  }
+  .status-reading { background: rgba(127,255,158,0.12); color: var(--accent); }
+  .status-want    { background: var(--book-bg); color: var(--book); }
+  .status-done    { background: rgba(82,82,110,0.2); color: var(--muted); }
+
+  /* ── VIDEOS ── */
+  .video-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+
+  .video-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .video-card:hover { border-color: var(--video-border); background: var(--video-bg); }
+
+  .video-thumb {
+    width: 64px; height: 46px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .play-btn {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.35);
+  }
+
+  .video-meta { flex: 1; min-width: 0; }
+
+  .video-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .video-detail {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .source-tag {
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 9px;
+  }
+  .yt-tag { background: var(--video-bg); border: 1px solid var(--video-border); color: var(--video); }
+
+  /* ── ARTICLES ── */
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+
+  .article-card {
+    background: var(--surface2);
+    padding: 13px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .article-card:first-child { border-radius: 16px 16px 0 0; }
+  .article-card:last-child  { border-radius: 0 0 16px 16px; }
+  .article-card:hover { background: var(--article-bg); }
+
+  .article-favicon {
+    width: 32px; height: 32px;
+    background: var(--surface3);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    border: 1px solid var(--border2);
+  }
+
+  .article-body { flex: 1; min-width: 0; }
+
+  .article-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+
+  .article-meta {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .article-domain { color: var(--article); }
+
+  .article-arrow { color: var(--muted2); flex-shrink: 0; }
+
+  .new-badge {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    height: 72px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 20px 8px;
+    flex-shrink: 0;
+  }
+
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; padding: 6px 14px; border-radius: 14px; transition: all 0.15s;
+  }
+  .nav-item.active { background: rgba(167,139,250,0.1); }
+  .nav-icon { width: 22px; height: 22px; color: var(--muted); transition: color 0.15s; }
+  .nav-item.active .nav-icon { color: var(--article); }
+  .nav-label { font-size: 10px; font-family: 'Space Mono', monospace; color: var(--muted); }
+  .nav-item.active .nav-label { color: var(--article); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: absolute;
+    bottom: 84px; left: 50%; transform: translateX(-50%);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    white-space: nowrap;
+    opacity: 0; transition: opacity 0.3s;
+    z-index: 50; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .book-card:nth-child(1)    { animation-delay: 0.04s; }
+  .book-card:nth-child(2)    { animation-delay: 0.09s; }
+  .book-card:nth-child(3)    { animation-delay: 0.14s; }
+  .book-card:nth-child(4)    { animation-delay: 0.19s; }
+  .video-card:nth-child(1)   { animation-delay: 0.08s; }
+  .video-card:nth-child(2)   { animation-delay: 0.14s; }
+  .video-card:nth-child(3)   { animation-delay: 0.20s; }
+  .article-card:nth-child(1) { animation-delay: 0.10s; }
+  .article-card:nth-child(2) { animation-delay: 0.16s; }
+  .article-card:nth-child(3) { animation-delay: 0.22s; }
+  .article-card:nth-child(4) { animation-delay: 0.28s; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <div class="statusbar">
+    <span>9:41</span>
+    <span style="width:120px"></span>
+    <span>●●● 5G</span>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="page-title">Library</div>
+        <div class="page-subtitle" id="subtitle">14 resources saved</div>
+      </div>
+      <div class="header-actions">
+        <div class="icon-btn">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="icon-btn">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- SINGLE FILTER: stat chips -->
+    <div class="stat-chips">
+
+      <!-- ALL pill -->
+      <div class="all-chip active" id="chip-all" onclick="filter('all')">
+        <div class="all-count">14</div>
+        <div class="all-label">All</div>
+      </div>
+
+      <!-- Books -->
+      <div class="type-chip books" id="chip-books" onclick="filter('books')">
+        <div class="chip-top">
+          <div class="chip-emoji">📚</div>
+          <div class="chip-count">6</div>
+        </div>
+        <div class="chip-label">Books</div>
+      </div>
+
+      <!-- Videos -->
+      <div class="type-chip videos" id="chip-videos" onclick="filter('videos')">
+        <div class="chip-top">
+          <div class="chip-emoji">🎬</div>
+          <div class="chip-count">4</div>
+        </div>
+        <div class="chip-label">Videos</div>
+      </div>
+
+      <!-- Articles -->
+      <div class="type-chip articles" id="chip-articles" onclick="filter('articles')">
+        <div class="chip-top">
+          <div class="chip-emoji">📰</div>
+          <div class="chip-count">4</div>
+        </div>
+        <div class="chip-label">Articles</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- BOOKS -->
+    <div id="section-books">
+      <div class="section-head">
+        <div class="section-label">
+          <div class="section-dot" style="background:var(--book)"></div>
+          Books
+        </div>
+        <div class="see-all">see all →</div>
+      </div>
+      <div class="books-scroll">
+        <div class="book-card">
+          <div class="book-spine" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">📘</div>
+          <div class="book-info">
+            <div class="book-title">Atomic Habits</div>
+            <div class="book-author">James Clear</div>
+            <div class="book-status status-reading">● reading</div>
+          </div>
+        </div>
+        <div class="book-card">
+          <div class="book-spine" style="background:linear-gradient(135deg,#2d1b00,#4a2e00)">🧠</div>
+          <div class="book-info">
+            <div class="book-title">Thinking Fast and Slow</div>
+            <div class="book-author">Kahneman</div>
+            <div class="book-status status-want">+ want</div>
+          </div>
+        </div>
+        <div class="book-card">
+          <div class="book-spine" style="background:linear-gradient(135deg,#0d1f0d,#1a3a1a)">🌱</div>
+          <div class="book-info">
+            <div class="book-title">The Almanack of Naval</div>
+            <div class="book-author">Eric Jorgenson</div>
+            <div class="book-status status-done">✓ done</div>
+          </div>
+        </div>
+        <div class="book-card">
+          <div class="book-spine" style="background:linear-gradient(135deg,#1a0d2e,#2d1a4a)">⚡</div>
+          <div class="book-info">
+            <div class="book-title">Zero to One</div>
+            <div class="book-author">Peter Thiel</div>
+            <div class="book-status status-want">+ want</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEOS -->
+    <div id="section-videos">
+      <div class="section-head">
+        <div class="section-label">
+          <div class="section-dot" style="background:var(--video)"></div>
+          Videos
+        </div>
+        <div class="see-all">see all →</div>
+      </div>
+      <div class="video-list">
+        <div class="video-card">
+          <div class="video-thumb" style="background:linear-gradient(135deg,#1a1a3a,#0d0d2e)">🎯
+            <div class="play-btn"><svg width="14" height="14" fill="white" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="video-meta">
+            <div class="video-title">The Alchemy of Air — How to Think</div>
+            <div class="video-detail"><span class="source-tag yt-tag">YouTube</span><span>18 min</span><div class="new-badge"></div></div>
+          </div>
+        </div>
+        <div class="video-card">
+          <div class="video-thumb" style="background:linear-gradient(135deg,#0d1f1a,#0d2e1a)">💡
+            <div class="play-btn"><svg width="14" height="14" fill="white" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="video-meta">
+            <div class="video-title">Building a Second Brain — Tiago Forte</div>
+            <div class="video-detail"><span class="source-tag yt-tag">YouTube</span><span>42 min</span></div>
+          </div>
+        </div>
+        <div class="video-card">
+          <div class="video-thumb" style="background:linear-gradient(135deg,#1f0d0d,#2e1a0d)">🚀
+            <div class="play-btn"><svg width="14" height="14" fill="white" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="video-meta">
+            <div class="video-title">Andrej Karpathy — Software 2.0</div>
+            <div class="video-detail"><span class="source-tag yt-tag">YouTube</span><span>31 min</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARTICLES -->
+    <div id="section-articles">
+      <div class="section-head">
+        <div class="section-label">
+          <div class="section-dot" style="background:var(--article)"></div>
+          Articles
+        </div>
+        <div class="see-all">see all →</div>
+      </div>
+      <div class="article-list">
+        <div class="article-card">
+          <div class="article-favicon">📝</div>
+          <div class="article-body">
+            <div class="article-title">The Unreasonable Effectiveness of RNNs</div>
+            <div class="article-meta"><span class="article-domain">karpathy.github.io</span><span>· 12 min read</span><div class="new-badge"></div></div>
+          </div>
+          <svg class="article-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="article-card">
+          <div class="article-favicon">🧵</div>
+          <div class="article-body">
+            <div class="article-title">How I Think About Product Intuition</div>
+            <div class="article-meta"><span class="article-domain">medium.com</span><span>· 8 min read</span></div>
+          </div>
+          <svg class="article-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="article-card">
+          <div class="article-favicon">⚙️</div>
+          <div class="article-body">
+            <div class="article-title">SQLite is not a toy database</div>
+            <div class="article-meta"><span class="article-domain">antonz.org</span><span>· 6 min read</span></div>
+          </div>
+          <svg class="article-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="article-card">
+          <div class="article-favicon">🔭</div>
+          <div class="article-body">
+            <div class="article-title">Situational Awareness — L. Aschenbrenner</div>
+            <div class="article-meta"><span class="article-domain">situational-awareness.ai</span><span>· 40 min</span></div>
+          </div>
+          <svg class="article-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="nav-label">Inbox</span>
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span class="nav-label">Tasks</span>
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span class="nav-label">Notes</span>
+    </div>
+    <div class="nav-item active">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">← switch to Inbox to dump resources</div>
+</div>
+
+<script>
+  const subtitles = {
+    all: '14 resources saved',
+    books: '6 books',
+    videos: '4 videos',
+    articles: '4 articles'
+  };
+
+  function filter(type) {
+    // Update chip states
+    ['all','books','videos','articles'].forEach(t => {
+      document.getElementById('chip-' + t).classList.remove('active');
+    });
+    document.getElementById('chip-' + type).classList.add('active');
+
+    // Update subtitle
+    document.getElementById('subtitle').textContent = subtitles[type];
+
+    // Show/hide sections
+    const show = (id, visible) => {
+      document.getElementById(id).style.display = visible ? '' : 'none';
+    };
+
+    if (type === 'all') {
+      show('section-books', true);
+      show('section-videos', true);
+      show('section-articles', true);
+    } else {
+      show('section-books',    type === 'books');
+      show('section-videos',   type === 'videos');
+      show('section-articles', type === 'articles');
+    }
+  }
+</script>
+</body>
+</html>

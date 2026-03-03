@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { classifyMessage, type ParsedEntry, type AIResponse } from '@/services/aiService';
 import * as db from '@/services/database';
 import { scheduleReminder } from '@/services/notificationService';
+import * as libraryService from '@/services/libraryService';
 
 export interface ChatMessage {
     id: string;
@@ -55,6 +56,81 @@ function jsonToEntries(json: string | null): ParsedEntry[] | undefined {
         return JSON.parse(json);
     } catch {
         return undefined;
+    }
+}
+
+// ── Library Resource Handler ──
+async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promise<void> {
+    try {
+        if (entry.libraryType === 'book') {
+            // Fetch book metadata
+            const metadata = await libraryService.fetchBookMetadata(entry.title);
+            
+            let coverLocalPath: string | undefined;
+            
+            // Download and cache cover image if available
+            if (metadata?.coverUrl) {
+                const cachedPath = await libraryService.downloadAndCacheImage(metadata.coverUrl, entryId);
+                if (cachedPath) {
+                    coverLocalPath = cachedPath;
+                }
+            }
+            
+            await db.saveLibraryResource({
+                entryId,
+                type: 'book',
+                title: metadata?.title || entry.title,
+                author: metadata?.author || entry.author,
+                coverUrl: metadata?.coverUrl,
+                coverLocalPath,
+                isbn: metadata?.isbn,
+            });
+        } else if (entry.libraryType === 'video' && entry.url) {
+            // Fetch video metadata
+            if (entry.platform === 'youtube') {
+                const metadata = await libraryService.fetchYouTubeMetadata(entry.url);
+                await db.saveLibraryResource({
+                    entryId,
+                    type: 'video',
+                    title: metadata?.title || entry.title,
+                    videoUrl: entry.url,
+                    videoPlatform: 'youtube',
+                    thumbnailUrl: metadata?.thumbnailUrl,
+                    duration: metadata?.duration,
+                });
+            } else if (entry.platform === 'instagram') {
+                // Instagram: just save URL
+                const metadata = libraryService.createInstagramMetadata(entry.url);
+                await db.saveLibraryResource({
+                    entryId,
+                    type: 'video',
+                    title: metadata.title,
+                    videoUrl: entry.url,
+                    videoPlatform: 'instagram',
+                });
+            }
+        } else if (entry.libraryType === 'article' && entry.url) {
+            // Fetch article metadata
+            const metadata = await libraryService.fetchArticleMetadata(entry.url);
+            await db.saveLibraryResource({
+                entryId,
+                type: 'article',
+                title: metadata?.title || entry.title,
+                articleUrl: entry.url,
+                domain: metadata?.domain,
+            });
+        }
+    } catch (error) {
+        console.error('[chatStore] Failed to handle library resource:', error);
+        // Fallback: save with minimal data
+        await db.saveLibraryResource({
+            entryId,
+            type: entry.libraryType || 'article',
+            title: entry.title,
+            videoUrl: entry.url,
+            articleUrl: entry.url,
+            videoPlatform: entry.platform,
+        });
     }
 }
 
@@ -159,6 +235,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     if (entry.remindAt) {
                         scheduleReminder(entry.title, entry.remindAt, reminderId);
                     }
+                } else if (entry.type === 'library') {
+                    // Handle library resources
+                    await handleLibraryResource(entry, entryId);
                 }
             }
 

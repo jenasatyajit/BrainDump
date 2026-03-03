@@ -6,9 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 
+import * as SplashScreen from 'expo-splash-screen';
+
 import { initDatabase } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
 import NotificationToast from '@/components/NotificationToast';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   initialRouteName: '(drawer)',
@@ -27,17 +32,15 @@ export default function RootLayout() {
         console.warn('[RootLayout] Bootstrap error:', error);
       } finally {
         setIsReady(true);
+        // Hide the splash screen once we're ready
+        await SplashScreen.hideAsync().catch((e) => console.warn('[RootLayout] Error hiding splash screen:', e));
       }
     }
     bootstrap();
-  }, []);
+  }, [loadMessages]);
 
   if (!isReady) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0a0a0f', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#7fff9e" />
-      </View>
-    );
+    return null;
   }
 
   return (
