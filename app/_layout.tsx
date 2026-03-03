@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 
-import { initDatabase } from '@/services/database';
+import { initDatabase, getLLMConfig } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
 import NotificationToast from '@/components/NotificationToast';
 
@@ -23,6 +23,8 @@ export const unstable_settings = {
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const loadMessages = useChatStore((s) => s.loadMessages);
+  const router = useRouter();
+  const segments = useSegments();
 
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
@@ -36,7 +38,22 @@ export default function RootLayout() {
     async function bootstrap() {
       try {
         await initDatabase();
-        await loadMessages();
+        
+        // Check if user needs onboarding
+        const config = await getLLMConfig();
+        const needsOnboarding = !config || 
+          (!config.gemini_api_key && !config.openrouter_api_key && !config.sarvam_api_key);
+        
+        if (needsOnboarding) {
+          console.log('[RootLayout] No API keys configured, redirecting to onboarding');
+          // Only redirect if not already on onboarding screen
+          const currentPath = segments.join('/');
+          if (!currentPath.includes('onboarding')) {
+            router.replace('/onboarding');
+          }
+        } else {
+          await loadMessages();
+        }
       } catch (error) {
         console.warn('[RootLayout] Bootstrap error:', error);
       } finally {
@@ -46,7 +63,7 @@ export default function RootLayout() {
       }
     }
     bootstrap();
-  }, [loadMessages]);
+  }, [loadMessages, router, segments]);
 
   if (!isReady || !fontsLoaded) {
     return null;

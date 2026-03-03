@@ -111,8 +111,25 @@ async function _doInit(): Promise<void> {
       created_at TEXT NOT NULL
     )`);
 
-        // Auto-migrate environment keys to database
-        await migrateEnvKeysToDatabase();
+        // Add new columns if they don't exist (for existing databases)
+        try {
+            await db.execAsync(`ALTER TABLE app_config ADD COLUMN schema_version INTEGER DEFAULT 1`);
+            console.log('[database] Added schema_version column to app_config');
+        } catch (error) {
+            // Column already exists, that's fine
+        }
+
+        try {
+            await db.execAsync(`ALTER TABLE app_config ADD COLUMN user_keys_configured INTEGER DEFAULT 0`);
+            console.log('[database] Added user_keys_configured column to app_config');
+        } catch (error) {
+            // Column already exists, that's fine
+        }
+
+        // Handle schema migration for existing users
+        await handleSchemaMigration();
+
+        // No longer auto-migrate env keys - only done via SATYA KEY
     } catch (error) {
         db = null;
         initPromise = null;
@@ -613,144 +630,198 @@ export async function setHasSeenLLMBanner(): Promise<void> {
     }
 }
 
-/**
- * Debug utility: Force re-migration of environment keys
- * Call this manually if keys aren't being detected
- */
-export async function forceMigration(): Promise<void> {
-    console.log('[database] ═══ FORCE MIGRATION STARTED ═══');
-    await migrateEnvKeysToDatabase();
-    console.log('[database] ═══ FORCE MIGRATION COMPLETE ═══');
+export async function getSchemaVersion(): Promise<number> {
+    const result = await getDb().getFirstAsync<{ schema_version: number }>(
+        'SELECT schema_version FROM app_config WHERE id = 1'
+    );
+    return result?.schema_version || 1;
+}
+
+export async function setSchemaVersion(version: number): Promise<void> {
+    const existing = await getDb().getFirstAsync<{ id: number }>(
+        'SELECT id FROM app_config WHERE id = 1'
+    );
+
+    if (existing) {
+        await getDb().runAsync('UPDATE app_config SET schema_version = ? WHERE id = 1', version);
+    } else {
+        await getDb().runAsync(
+            'INSERT INTO app_config (id, schema_version, created_at) VALUES (?, ?, ?)',
+            1,
+            version,
+            new Date().toISOString()
+        );
+    }
+}
+
+export async function getUserKeysConfigured(): Promise<boolean> {
+    const result = await getDb().getFirstAsync<{ user_keys_configured: number }>(
+        'SELECT user_keys_configured FROM app_config WHERE id = 1'
+    );
+    return result?.user_keys_configured === 1;
+}
+
+export async function setUserKeysConfigured(configured: boolean): Promise<void> {
+    const existing = await getDb().getFirstAsync<{ id: number }>(
+        'SELECT id FROM app_config WHERE id = 1'
+    );
+
+    if (existing) {
+        await getDb().runAsync(
+            'UPDATE app_config SET user_keys_configured = ? WHERE id = 1',
+            configured ? 1 : 0
+        );
+    } else {
+        await getDb().runAsync(
+            'INSERT INTO app_config (id, user_keys_configured, created_at) VALUES (?, ?, ?)',
+            1,
+            configured ? 1 : 0,
+            new Date().toISOString()
+        );
+    }
 }
 
 /**
- * Debug utility: Clear LLM config and re-migrate
+ * Debug utility: Clear LLM config and redirect to onboarding
  */
 export async function resetLLMConfig(): Promise<void> {
     console.log('[database] Resetting LLM config...');
     await getDb().runAsync('DELETE FROM llm_config WHERE id = 1');
-    await migrateEnvKeysToDatabase();
+    await setUserKeysConfigured(false);
+    await setSchemaVersion(2);
     const config = await getLLMConfig();
-    console.log('[database] Reset complete. New config:', config);
+    console.log('[database] Reset complete. Config cleared:', config === null);
 }
 
-async function migrateEnvKeysToDatabase(): Promise<void> {
+/**
+ * Handle schema migration for existing users updating from old versions
+ */
+async function handleSchemaMigration(): Promise<void> {
     try {
-        console.log('[database] ═══ Starting migration ═══');
+        console.log('[database] ═══ Checking schema version ═══');
+        
+        // Try to get current schema version
+        let currentVersion = 1;
+        try {
+            const result = await getDb().getFirstAsync<{ schema_version: number }>(
+                'SELECT schema_version FROM app_config WHERE id = 1'
+            );
+            currentVersion = result?.schema_version || 1;
+        } catch (error) {
+            // Column might not exist in old schema, that's okay
+            console.log('[database] Schema version column not found, assuming version 1');
+        }
+
+        console.log('[database] Current schema version:', currentVersion);
+
+        // If schema version is less than 2, this is an old version
+        if (currentVersion < 2) {
+            console.log('[database] Migrating from old version to version 2');
+            
+            // Check if llm_config exists and has any keys
+            const existingConfig = await getLLMConfig();
+            
+            if (existingConfig) {
+                console.log('[database] Found existing LLM config - clearing API keys to force re-entry');
+                
+                // Clear all API keys but keep the provider setting
+                await getDb().runAsync(
+                    `UPDATE llm_config SET 
+                        gemini_api_key = NULL, 
+                        openrouter_api_key = NULL, 
+                        sarvam_api_key = NULL,
+                        updated_at = ?
+                    WHERE id = 1`,
+                    new Date().toISOString()
+                );
+                
+                console.log('[database] ✓ API keys cleared - user will need to re-enter them');
+            }
+            
+            // Update schema version to 2
+            await setSchemaVersion(2);
+            await setUserKeysConfigured(false);
+            
+            console.log('[database] ✓ Migration to version 2 complete');
+        } else {
+            console.log('[database] Schema is up to date (version 2)');
+        }
+        
+        console.log('[database] ═══ Schema check complete ═══');
+    } catch (error) {
+        console.error('[database] ✗ Schema migration failed:', error);
+        // Don't throw - migration failure shouldn't break app initialization
+    }
+}
+
+/**
+ * Migrate environment keys to database - ONLY fills missing keys when SATYA KEY is used
+ * Does NOT create new config or override existing user keys
+ */
+export async function migrateEnvKeysToDatabase(): Promise<void> {
+    try {
+        console.log('[database] ═══ Starting SATYA KEY migration ═══');
         
         // Check if config already exists
         const existing = await getLLMConfig();
         
+        if (!existing) {
+            console.log('[database] No existing config - SATYA KEY migration skipped (user must configure first)');
+            return;
+        }
+
         // Get keys from environment variables (filter out empty strings)
         const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() || null;
         const openrouterKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY?.trim() || null;
         const sarvamKey = process.env.EXPO_PUBLIC_SARVAM_API_KEY?.trim() || null;
 
         console.log('[database] Environment variables check:', {
-            EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY ? `${process.env.EXPO_PUBLIC_GEMINI_API_KEY.substring(0, 10)}...` : 'undefined',
-            EXPO_PUBLIC_OPENROUTER_API_KEY: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ? `${process.env.EXPO_PUBLIC_OPENROUTER_API_KEY.substring(0, 10)}...` : 'undefined',
-            EXPO_PUBLIC_SARVAM_API_KEY: process.env.EXPO_PUBLIC_SARVAM_API_KEY ? `${process.env.EXPO_PUBLIC_SARVAM_API_KEY.substring(0, 10)}...` : 'undefined',
-        });
-
-        console.log('[database] Parsed keys:', {
             hasGemini: !!geminiKey,
             hasOpenrouter: !!openrouterKey,
             hasSarvam: !!sarvamKey,
-            geminiKeyLength: geminiKey?.length || 0,
-            openrouterKeyLength: openrouterKey?.length || 0,
-            sarvamKeyLength: sarvamKey?.length || 0,
         });
 
-        if (existing) {
-            // Config exists - check if we need to update missing keys
-            console.log('[database] Existing LLM config found:', {
-                provider: existing.provider,
-                hasGemini: !!existing.gemini_api_key,
-                hasOpenrouter: !!existing.openrouter_api_key,
-                hasSarvam: !!existing.sarvam_api_key,
-                geminiKeyLength: existing.gemini_api_key?.length || 0,
-                openrouterKeyLength: existing.openrouter_api_key?.length || 0,
-                sarvamKeyLength: existing.sarvam_api_key?.length || 0,
-            });
+        console.log('[database] Existing config:', {
+            provider: existing.provider,
+            hasGemini: !!existing.gemini_api_key,
+            hasOpenrouter: !!existing.openrouter_api_key,
+            hasSarvam: !!existing.sarvam_api_key,
+        });
 
-            // Update missing keys from environment
-            let needsUpdate = false;
-            const updates: any = { provider: existing.provider };
+        // Update ONLY missing keys from environment
+        let needsUpdate = false;
+        const updates: any = { provider: existing.provider };
 
-            if (!existing.gemini_api_key && geminiKey) {
-                updates.gemini_api_key = geminiKey;
-                needsUpdate = true;
-                console.log('[database] → Will add missing Gemini key from .env');
-            }
-            if (!existing.openrouter_api_key && openrouterKey) {
-                updates.openrouter_api_key = openrouterKey;
-                needsUpdate = true;
-                console.log('[database] → Will add missing OpenRouter key from .env');
-            }
-            if (!existing.sarvam_api_key && sarvamKey) {
-                updates.sarvam_api_key = sarvamKey;
-                needsUpdate = true;
-                console.log('[database] → Will add missing Sarvam key from .env');
-            }
-
-            if (needsUpdate) {
-                console.log('[database] Updating config with:', updates);
-                await saveLLMConfig(updates);
-                
-                // Verify the update
-                const updated = await getLLMConfig();
-                console.log('[database] ✓ Config updated. Verification:', {
-                    hasGemini: !!updated?.gemini_api_key,
-                    hasOpenrouter: !!updated?.openrouter_api_key,
-                    hasSarvam: !!updated?.sarvam_api_key,
-                    geminiValue: updated?.gemini_api_key ? `${updated.gemini_api_key.substring(0, 10)}...` : 'null',
-                    openrouterValue: updated?.openrouter_api_key ? `${updated.openrouter_api_key.substring(0, 10)}...` : 'null',
-                    sarvamValue: updated?.sarvam_api_key ? `${updated.sarvam_api_key.substring(0, 10)}...` : 'null',
-                });
-                console.log('[database] Full updated config:', updated);
-            } else {
-                console.log('[database] LLM config is complete, no updates needed');
-            }
-            return;
+        if (!existing.gemini_api_key && geminiKey) {
+            updates.gemini_api_key = geminiKey;
+            needsUpdate = true;
+            console.log('[database] → Will add missing Gemini key from .env');
+        }
+        if (!existing.openrouter_api_key && openrouterKey) {
+            updates.openrouter_api_key = openrouterKey;
+            needsUpdate = true;
+            console.log('[database] → Will add missing OpenRouter key from .env');
+        }
+        if (!existing.sarvam_api_key && sarvamKey) {
+            updates.sarvam_api_key = sarvamKey;
+            needsUpdate = true;
+            console.log('[database] → Will add missing Sarvam key from .env');
         }
 
-        // No existing config - create new one
-        console.log('[database] No existing config found, creating new one');
-        
-        // Only migrate if at least one key exists
-        if (geminiKey || openrouterKey || sarvamKey) {
-            const newConfig = {
-                provider: 'gemini' as const, // Default to Gemini
-                gemini_api_key: geminiKey,
-                openrouter_api_key: openrouterKey,
-                sarvam_api_key: sarvamKey,
-                openrouter_model: 'meta-llama/llama-3.2-3b-instruct:free',
-            };
+        if (needsUpdate) {
+            console.log('[database] Updating config with missing keys');
+            await saveLLMConfig(updates);
             
-            console.log('[database] Creating config with:', {
-                provider: newConfig.provider,
-                hasGemini: !!newConfig.gemini_api_key,
-                hasOpenrouter: !!newConfig.openrouter_api_key,
-                hasSarvam: !!newConfig.sarvam_api_key,
-            });
-            
-            await saveLLMConfig(newConfig);
-            
-            // Verify the creation
-            const created = await getLLMConfig();
-            console.log('[database] ✓ Config created. Verification:', {
-                hasGemini: !!created?.gemini_api_key,
-                hasOpenrouter: !!created?.openrouter_api_key,
-                hasSarvam: !!created?.sarvam_api_key,
-            });
+            const updated = await getLLMConfig();
+            console.log('[database] ✓ Config updated with SATYA KEY');
         } else {
-            console.warn('[database] ⚠ No API keys found in environment variables');
+            console.log('[database] All keys already present, no updates needed');
         }
         
-        console.log('[database] ═══ Migration complete ═══');
+        console.log('[database] ═══ SATYA KEY migration complete ═══');
     } catch (error) {
-        console.error('[database] ✗ Migration failed:', error);
-        // Don't throw - migration failure shouldn't break app initialization
+        console.error('[database] ✗ SATYA KEY migration failed:', error);
+        throw error; // Throw so onboarding can show error
     }
 }
 

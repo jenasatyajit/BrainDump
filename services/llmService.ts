@@ -558,23 +558,23 @@ export async function callWithAutoFallback(request: LLMRequest): Promise<LLMFall
 
     // Add selected provider FIRST
     console.log('[llmService] Selected provider:', config.provider);
-    if (config.provider === 'gemini' && providers.gemini) {
+    if (config.provider === 'sarvam' && providers.sarvam) {
+        addProvider('Sarvam', providers.sarvam.provider);
+    } else if (config.provider === 'gemini' && providers.gemini) {
         addProvider('Gemini', providers.gemini.provider);
     } else if (config.provider === 'openrouter' && providers.openrouter) {
         addProvider('OpenRouter', providers.openrouter.provider, providers.openrouter.model);
-    } else if (config.provider === 'sarvam' && providers.sarvam) {
-        addProvider('Sarvam', providers.sarvam.provider);
     }
 
-    // Add remaining providers as fallbacks (in order of preference)
+    // Add remaining providers as fallbacks (in order of preference: Sarvam → Gemini → OpenRouter)
+    if (config.provider !== 'sarvam' && providers.sarvam) {
+        addProvider('Sarvam', providers.sarvam.provider);
+    }
     if (config.provider !== 'gemini' && providers.gemini) {
         addProvider('Gemini', providers.gemini.provider);
     }
     if (config.provider !== 'openrouter' && providers.openrouter) {
         addProvider('OpenRouter', providers.openrouter.provider, providers.openrouter.model);
-    }
-    if (config.provider !== 'sarvam' && providers.sarvam) {
-        addProvider('Sarvam', providers.sarvam.provider);
     }
 
     console.log('[llmService] Provider order:', availableProviders.map(p => p.name).join(' → '));

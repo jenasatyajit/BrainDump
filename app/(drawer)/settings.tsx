@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { fullSync, getLastSyncTime } from '@/services/syncService';
-import { clearAllData, getLLMConfig, type LLMConfig, forceMigration, resetLLMConfig, saveLLMConfig } from '@/services/database';
+import { clearAllData, getLLMConfig, type LLMConfig, resetLLMConfig, saveLLMConfig } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
 import { supabase } from '@/utils/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -81,29 +81,10 @@ export default function SettingsScreen() {
         );
     }, [loadMessages]);
 
-    const handleForceMigration = useCallback(async () => {
-        Alert.alert(
-            'Force Migration',
-            'This will re-check environment variables and update missing API keys in the database.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Run Migration',
-                    onPress: async () => {
-                        await forceMigration();
-                        const updated = await getLLMConfig();
-                        setLlmConfig(updated);
-                        Alert.alert('Done', 'Migration complete. Check console logs for details.');
-                    },
-                },
-            ]
-        );
-    }, []);
-
     const handleResetLLMConfig = useCallback(async () => {
         Alert.alert(
             'Reset LLM Config',
-            'This will delete the current LLM configuration and re-migrate from environment variables.',
+            'This will delete all your API keys and redirect you to onboarding to re-enter them.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -113,12 +94,19 @@ export default function SettingsScreen() {
                         await resetLLMConfig();
                         const updated = await getLLMConfig();
                         setLlmConfig(updated);
-                        Alert.alert('Done', 'LLM config reset. Check console logs for details.');
+                        Alert.alert('Done', 'LLM config reset. Redirecting to onboarding...', [
+                            {
+                                text: 'OK',
+                                onPress: () => {
+                                    router.replace('/onboarding');
+                                },
+                            },
+                        ]);
                     },
                 },
             ]
         );
-    }, []);
+    }, [router]);
 
     const handleShowConfig = useCallback(async () => {
         const config = await getLLMConfig();
@@ -409,23 +397,15 @@ OpenRouter Model: ${config?.openrouter_model || 'none'}
                         <Ionicons name="bug-outline" size={20} color="#7fff9e" />
                     </View>
                     <View className="flex-1">
-                        <Text className="text-sm font-medium text-text">Migration Tools</Text>
+                        <Text className="text-sm font-medium text-text">Configuration Tools</Text>
                         <Text className="text-xs text-muted">
-                            Fix API key detection issues
+                            View and manage LLM configuration
                         </Text>
                     </View>
                 </View>
-                
-                <TouchableOpacity
-                    className="mt-4 items-center rounded-xl border border-accent/20 bg-accent/[0.08] py-3"
-                    activeOpacity={0.7}
-                    onPress={handleForceMigration}
-                >
-                    <Text className="text-sm font-medium text-accent">Force Migration</Text>
-                </TouchableOpacity>
 
                 <TouchableOpacity
-                    className="mt-2 items-center rounded-xl border border-accent/20 bg-accent/[0.08] py-3"
+                    className="mt-4 items-center rounded-xl border border-accent/20 bg-accent/[0.08] py-3"
                     activeOpacity={0.7}
                     onPress={handleShowConfig}
                 >
@@ -441,7 +421,7 @@ OpenRouter Model: ${config?.openrouter_model || 'none'}
                 </TouchableOpacity>
 
                 <Text className="mt-3 text-center text-[11px] text-muted">
-                    Use these tools if API keys from .env aren't being detected
+                    View your current configuration or reset to clear all API keys
                 </Text>
             </View>
 

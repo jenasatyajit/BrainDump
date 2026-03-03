@@ -2,28 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { saveLLMConfig, getLLMConfig } from '@/services/database';
+import { saveLLMConfig, getLLMConfig, setUserKeysConfigured, setSchemaVersion, migrateEnvKeysToDatabase } from '@/services/database';
 
 type Provider = 'gemini' | 'openrouter' | 'sarvam';
 
 const PROVIDER_INFO = {
+    sarvam: {
+        name: 'Sarvam AI',
+        description: 'Optimized for Indian languages',
+        icon: 'language' as const,
+        getKeyUrl: 'https://www.sarvam.ai/',
+        recommended: true,
+    },
     gemini: {
         name: 'Google Gemini',
         description: 'Fast and reliable, great for general use',
         icon: 'flash' as const,
         getKeyUrl: 'https://aistudio.google.com/app/apikey',
+        recommended: false,
     },
     openrouter: {
         name: 'OpenRouter',
         description: 'Access to 400+ models from one API',
         icon: 'git-network' as const,
         getKeyUrl: 'https://openrouter.ai/keys',
-    },
-    sarvam: {
-        name: 'Sarvam AI',
-        description: 'Optimized for Indian languages',
-        icon: 'language' as const,
-        getKeyUrl: 'https://www.sarvam.ai/',
+        recommended: false,
     },
 };
 
@@ -33,7 +36,7 @@ const OPENROUTER_MODELS = [
 ];
 
 export default function OnboardingScreen() {
-    const [selectedProvider, setSelectedProvider] = useState<Provider>('gemini');
+    const [selectedProvider, setSelectedProvider] = useState<Provider>('sarvam');
     const [geminiKey, setGeminiKey] = useState('');
     const [openrouterKey, setOpenrouterKey] = useState('');
     const [sarvamKey, setSarvamKey] = useState('');
@@ -84,15 +87,8 @@ export default function OnboardingScreen() {
         let finalOpenrouterKey = openrouterKey;
         let finalSarvamKey = sarvamKey;
         
-        // If SATYA KEY is valid, use environment keys
-        if (isSatyaKeyValid) {
-            finalGeminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || geminiKey;
-            finalOpenrouterKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || openrouterKey;
-            finalSarvamKey = process.env.EXPO_PUBLIC_SARVAM_API_KEY || sarvamKey;
-        }
-        
-        // Validate that at least one key is provided
-        if (!finalGeminiKey && !finalOpenrouterKey && !finalSarvamKey) {
+        // Validate that at least one key is provided by user
+        if (!geminiKey && !openrouterKey && !sarvamKey && !isSatyaKeyValid) {
             Alert.alert(
                 'API Key Required',
                 'Please enter at least one API key or provide the SATYA KEY to use developer keys.'
@@ -100,30 +96,54 @@ export default function OnboardingScreen() {
             return;
         }
 
-        // Validate selected provider has a key
-        if (selectedProvider === 'gemini' && !finalGeminiKey) {
-            Alert.alert('Gemini Key Required', 'Please enter your Gemini API key or select a different provider.');
-            return;
-        }
-        if (selectedProvider === 'openrouter' && !finalOpenrouterKey) {
-            Alert.alert('OpenRouter Key Required', 'Please enter your OpenRouter API key or select a different provider.');
-            return;
-        }
-        if (selectedProvider === 'sarvam' && !finalSarvamKey) {
-            Alert.alert('Sarvam Key Required', 'Please enter your Sarvam API key or select a different provider.');
-            return;
-        }
-
         setIsSaving(true);
 
         try {
+            // Determine the provider based on priority: Sarvam > Gemini > OpenRouter
+            let finalProvider: Provider = selectedProvider;
+            
+            // If user provided all three keys, default to Sarvam
+            if (geminiKey && openrouterKey && sarvamKey) {
+                finalProvider = 'sarvam';
+            } else if (!geminiKey && !openrouterKey && !sarvamKey && isSatyaKeyValid) {
+                // If only SATYA KEY is provided, default to Sarvam
+                finalProvider = 'sarvam';
+            } else {
+                // Otherwise use the selected provider, but validate it has a key
+                if (selectedProvider === 'gemini' && !geminiKey && !isSatyaKeyValid) {
+                    Alert.alert('Gemini Key Required', 'Please enter your Gemini API key, provide SATYA KEY, or select a different provider.');
+                    setIsSaving(false);
+                    return;
+                }
+                if (selectedProvider === 'openrouter' && !openrouterKey && !isSatyaKeyValid) {
+                    Alert.alert('OpenRouter Key Required', 'Please enter your OpenRouter API key, provide SATYA KEY, or select a different provider.');
+                    setIsSaving(false);
+                    return;
+                }
+                if (selectedProvider === 'sarvam' && !sarvamKey && !isSatyaKeyValid) {
+                    Alert.alert('Sarvam Key Required', 'Please enter your Sarvam API key, provide SATYA KEY, or select a different provider.');
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
+            // Save the user-provided keys first
             await saveLLMConfig({
-                provider: selectedProvider,
+                provider: finalProvider,
                 gemini_api_key: finalGeminiKey || null,
                 openrouter_api_key: finalOpenrouterKey || null,
                 sarvam_api_key: finalSarvamKey || null,
                 openrouter_model: selectedModel,
             });
+
+            // If SATYA KEY is valid, fill in missing keys from environment
+            if (isSatyaKeyValid) {
+                await migrateEnvKeysToDatabase();
+            }
+
+            // Mark that user has configured keys and set schema version
+            await setUserKeysConfigured(true);
+            await setSchemaVersion(2);
 
             router.replace('/(drawer)/(tabs)');
         } catch (error) {
@@ -151,12 +171,13 @@ export default function OnboardingScreen() {
                 <View className="mb-8">
                     <Text className="text-3xl font-bold text-text mb-2">Welcome to Brain Dump</Text>
                     <Text className="text-base text-muted">Choose your AI provider to get started</Text>
+                    <Text className="text-sm text-muted mt-2">You can change your provider anytime in Settings</Text>
                 </View>
 
                 {/* Provider Selection */}
                 <Text className="text-xs uppercase tracking-widest text-muted mb-4">Select Provider</Text>
 
-                {(Object.keys(PROVIDER_INFO) as Provider[]).map((provider) => (
+                {(['sarvam', 'gemini', 'openrouter'] as Provider[]).map((provider) => (
                     <TouchableOpacity
                         key={provider}
                         className={`mb-3 rounded-2xl border p-4 ${
@@ -180,9 +201,16 @@ export default function OnboardingScreen() {
                                 />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-sm font-medium text-text">
-                                    {PROVIDER_INFO[provider].name}
-                                </Text>
+                                <View className="flex-row items-center gap-2">
+                                    <Text className="text-sm font-medium text-text">
+                                        {PROVIDER_INFO[provider].name}
+                                    </Text>
+                                    {PROVIDER_INFO[provider].recommended && (
+                                        <View className="rounded-md bg-accent/20 px-2 py-0.5">
+                                            <Text className="text-xs font-medium text-accent">Recommended</Text>
+                                        </View>
+                                    )}
+                                </View>
                                 <Text className="text-xs text-muted">
                                     {PROVIDER_INFO[provider].description}
                                 </Text>
@@ -197,6 +225,35 @@ export default function OnboardingScreen() {
 
                 {/* API Keys Section */}
                 <Text className="text-xs uppercase tracking-widest text-muted mb-4 mt-8">API Keys</Text>
+
+                {/* Sarvam API Key */}
+                <View className="mb-4">
+                    <View className="flex-row items-center justify-between mb-2">
+                        <Text className="text-sm font-medium text-text">Sarvam API Key</Text>
+                        <TouchableOpacity onPress={() => openGetKeyUrl('sarvam')}>
+                            <Text className="text-xs text-accent">Get Key →</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <View className="flex-row items-center rounded-xl border border-border bg-surface2 px-4">
+                        <TextInput
+                            className="flex-1 py-3 text-sm text-text"
+                            placeholder="Enter your Sarvam API key"
+                            placeholderTextColor="#5a5a70"
+                            value={sarvamKey}
+                            onChangeText={setSarvamKey}
+                            secureTextEntry={!showSarvamKey}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        <TouchableOpacity onPress={() => setShowSarvamKey(!showSarvamKey)}>
+                            <Ionicons
+                                name={showSarvamKey ? 'eye-off-outline' : 'eye-outline'}
+                                size={20}
+                                color="#5a5a70"
+                            />
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
                 {/* Gemini API Key */}
                 <View className="mb-4">
@@ -280,35 +337,6 @@ export default function OnboardingScreen() {
                             ))}
                         </View>
                     )}
-                </View>
-
-                {/* Sarvam API Key */}
-                <View className="mb-4">
-                    <View className="flex-row items-center justify-between mb-2">
-                        <Text className="text-sm font-medium text-text">Sarvam API Key</Text>
-                        <TouchableOpacity onPress={() => openGetKeyUrl('sarvam')}>
-                            <Text className="text-xs text-accent">Get Key →</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View className="flex-row items-center rounded-xl border border-border bg-surface2 px-4">
-                        <TextInput
-                            className="flex-1 py-3 text-sm text-text"
-                            placeholder="Enter your Sarvam API key"
-                            placeholderTextColor="#5a5a70"
-                            value={sarvamKey}
-                            onChangeText={setSarvamKey}
-                            secureTextEntry={!showSarvamKey}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        <TouchableOpacity onPress={() => setShowSarvamKey(!showSarvamKey)}>
-                            <Ionicons
-                                name={showSarvamKey ? 'eye-off-outline' : 'eye-outline'}
-                                size={20}
-                                color="#5a5a70"
-                            />
-                        </TouchableOpacity>
-                    </View>
                 </View>
 
                 {/* SATYA KEY Section */}
