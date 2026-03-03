@@ -24,6 +24,7 @@ export interface ParsedEntry {
     author?: string;
     url?: string;
     platform?: 'youtube' | 'instagram';
+    status?: 'reading' | 'want' | 'done';
 }
 
 export interface AIResponse {

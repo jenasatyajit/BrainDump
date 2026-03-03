@@ -1,18 +1,20 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLibraryStore } from '@/store/libraryStore';
+import { useLibraryStore, type LibraryEntry } from '@/store/libraryStore';
 import { useChatStore } from '@/store/chatStore';
 import LibraryHeader from '@/components/library/LibraryHeader';
 import FilterChips from '@/components/library/FilterChips';
 import BookCard from '@/components/library/BookCard';
 import VideoCard from '@/components/library/VideoCard';
 import ArticleCard from '@/components/library/ArticleCard';
+import LibraryEditModal from '@/components/library/LibraryEditModal';
 
 export default function LibraryScreen() {
     const { filter, setFilter, getStats, getFilteredEntries } = useLibraryStore();
-    const { loadMessages } = useChatStore();
+    const { loadMessages, editTask, deleteTask } = useChatStore();
     const [refreshing, setRefreshing] = useState(false);
+    const [editEntry, setEditEntry] = useState<LibraryEntry | null>(null);
 
     const stats = getStats();
     const entries = getFilteredEntries();
@@ -27,6 +29,10 @@ export default function LibraryScreen() {
         setRefreshing(false);
     }, [loadMessages]);
 
+    const handleLongPress = (entry: LibraryEntry) => {
+        setEditEntry(entry);
+    };
+
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-bg">
             <LibraryHeader total={stats.total} />
@@ -40,20 +46,30 @@ export default function LibraryScreen() {
                 {/* Books Section */}
                 {(filter === 'all' || filter === 'books') && books.length > 0 && (
                     <View className="mb-6">
-                        <View className="mb-3 flex-row items-center gap-2 px-6">
-                            <View className="h-2 w-2 rounded-full bg-[#f59e6a]" />
+                        <View className="mb-3 flex-row items-center justify-between px-6">
                             <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
-                                Books
+                                ● BOOKS
                             </Text>
+                            {filter === 'all' && (
+                                <TouchableOpacity onPress={() => setFilter('books')} activeOpacity={0.7}>
+                                    <Text className="text-[12px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                                        see all →
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
                             className="px-6"
-                            contentContainerStyle={{ gap: 10 }}
+                            contentContainerStyle={{ gap: 12 }}
                         >
                             {books.map((book) => (
-                                <BookCard key={book.messageId + book.entryIndex} book={book} />
+                                <BookCard 
+                                    key={book.messageId + book.entryIndex} 
+                                    book={book}
+                                    onLongPress={() => handleLongPress(book)}
+                                />
                             ))}
                         </ScrollView>
                     </View>
@@ -62,32 +78,49 @@ export default function LibraryScreen() {
                 {/* Videos Section */}
                 {(filter === 'all' || filter === 'videos') && videos.length > 0 && (
                     <View className="mb-6 px-6">
-                        <View className="mb-3 flex-row items-center gap-2">
-                            <View className="h-2 w-2 rounded-full bg-[#7eb8ff]" />
+                        <View className="mb-3 flex-row items-center justify-between">
                             <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
-                                Videos
+                                ● VIDEOS
                             </Text>
+                            {filter === 'all' && (
+                                <TouchableOpacity onPress={() => setFilter('videos')} activeOpacity={0.7}>
+                                    <Text className="text-[12px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                                        see all →
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         {videos.map((video) => (
-                            <VideoCard key={video.messageId + video.entryIndex} video={video} />
+                            <VideoCard 
+                                key={video.messageId + video.entryIndex} 
+                                video={video}
+                                onLongPress={() => handleLongPress(video)}
+                            />
                         ))}
                     </View>
                 )}
 
                 {/* Articles Section */}
                 {(filter === 'all' || filter === 'articles') && articles.length > 0 && (
-                    <View className="mb-6">
-                        <View className="mb-3 flex-row items-center gap-2 px-6">
-                            <View className="h-2 w-2 rounded-full bg-[#a78bfa]" />
+                    <View className="mb-6 px-6">
+                        <View className="mb-3 flex-row items-center justify-between">
                             <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
-                                Articles
+                                ● ARTICLES
                             </Text>
+                            {filter === 'all' && (
+                                <TouchableOpacity onPress={() => setFilter('articles')} activeOpacity={0.7}>
+                                    <Text className="text-[12px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                                        see all →
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
-                        <View className="overflow-hidden rounded-2xl border-t border-border bg-surface2 px-6">
+                        <View className="overflow-hidden rounded-2xl border-t border-border bg-surface2">
                             {articles.map((article, index) => (
                                 <ArticleCard
                                     key={article.messageId + article.entryIndex}
                                     article={article}
+                                    onLongPress={() => handleLongPress(article)}
                                 />
                             ))}
                         </View>
@@ -115,6 +148,14 @@ export default function LibraryScreen() {
                     </View>
                 )}
             </ScrollView>
+
+            <LibraryEditModal
+                visible={!!editEntry}
+                entry={editEntry}
+                onClose={() => setEditEntry(null)}
+                onSave={editTask}
+                onDelete={deleteTask}
+            />
         </SafeAreaView>
     );
 }

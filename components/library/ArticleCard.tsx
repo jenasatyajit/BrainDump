@@ -6,9 +6,10 @@ import type { LibraryEntry } from '@/store/libraryStore';
 
 interface ArticleCardProps {
     article: LibraryEntry;
+    onLongPress?: () => void;
 }
 
-export default function ArticleCard({ article }: ArticleCardProps) {
+export default function ArticleCard({ article, onLongPress }: ArticleCardProps) {
     const handlePress = async () => {
         if (article.url) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -28,6 +29,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             className="flex-row items-center gap-3 border-b border-border bg-surface2 p-3.5"
             activeOpacity={0.7}
             onPress={handlePress}
+            onLongPress={onLongPress}
         >
             {/* Icon */}
             <View className="h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-border2 bg-surface3">

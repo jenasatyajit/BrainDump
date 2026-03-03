@@ -6,9 +6,10 @@ import type { LibraryEntry } from '@/store/libraryStore';
 
 interface VideoCardProps {
     video: LibraryEntry;
+    onLongPress?: () => void;
 }
 
-export default function VideoCard({ video }: VideoCardProps) {
+export default function VideoCard({ video, onLongPress }: VideoCardProps) {
     const handlePress = async () => {
         if (video.url) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -28,6 +29,7 @@ export default function VideoCard({ video }: VideoCardProps) {
             className="mb-2 flex-row items-center gap-3 rounded-2xl border border-border bg-surface2 p-3"
             activeOpacity={0.7}
             onPress={handlePress}
+            onLongPress={onLongPress}
         >
             {/* Thumbnail */}
             <View className="h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface3">

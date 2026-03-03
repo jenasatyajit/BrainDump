@@ -20,7 +20,7 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
         <View className="mb-4 flex-row gap-2 px-6">
             {/* All */}
             <TouchableOpacity
-                className={`h-16 flex-shrink-0 flex-col justify-center gap-0.5 rounded-2xl border-[1.5px] px-4 ${
+                className={`h-[88px] w-[100px] flex-shrink-0 flex-col justify-center gap-0.5 rounded-2xl border-[1.5px] ${
                     active === 'all'
                         ? 'border-accent/30 bg-accent/[0.07]'
                         : 'border-border2 bg-surface2'
@@ -29,17 +29,17 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 onPress={() => handlePress('all')}
             >
                 <Text
-                    className="text-[20px] leading-none"
-                    style={{ color: active === 'all' ? '#7fff9e' : '#e8e8f0', fontFamily: 'DMSans_700Bold' }}
+                    className="text-center text-[32px] leading-none"
+                    style={{ color: '#7fff9e', fontFamily: 'DMSans_700Bold' }}
                 >
                     {stats.total}
                 </Text>
-                <Text className="text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>All</Text>
+                <Text className="text-center text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>All</Text>
             </TouchableOpacity>
 
             {/* Books */}
             <TouchableOpacity
-                className={`flex-1 rounded-2xl border-[1.5px] p-3 ${
+                className={`h-[88px] flex-1 rounded-2xl border-[1.5px] p-3 ${
                     active === 'books'
                         ? 'border-[#f59e6a]/30 bg-[#f59e6a]/[0.07]'
                         : 'border-border2 bg-surface2'
@@ -48,22 +48,22 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 onPress={() => handlePress('books')}
             >
                 <View className="flex-row items-center justify-between">
-                    <Text className="text-lg">📚</Text>
+                    <Text className="text-2xl">📚</Text>
                     <Text
-                        className="text-[20px] leading-none"
-                        style={{ color: active === 'books' ? '#f59e6a' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
+                        className="text-[28px] leading-none"
+                        style={{ color: '#f59e6a', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.books}
                     </Text>
                 </View>
-                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                <Text className="mt-auto text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Books
                 </Text>
             </TouchableOpacity>
 
             {/* Videos */}
             <TouchableOpacity
-                className={`flex-1 rounded-2xl border-[1.5px] p-3 ${
+                className={`h-[88px] flex-1 rounded-2xl border-[1.5px] p-3 ${
                     active === 'videos'
                         ? 'border-[#7eb8ff]/30 bg-[#7eb8ff]/[0.07]'
                         : 'border-border2 bg-surface2'
@@ -72,22 +72,22 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 onPress={() => handlePress('videos')}
             >
                 <View className="flex-row items-center justify-between">
-                    <Text className="text-lg">🎬</Text>
+                    <Text className="text-2xl">🎬</Text>
                     <Text
-                        className="text-[20px] leading-none"
-                        style={{ color: active === 'videos' ? '#7eb8ff' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
+                        className="text-[28px] leading-none"
+                        style={{ color: '#7eb8ff', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.videos}
                     </Text>
                 </View>
-                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                <Text className="mt-auto text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Videos
                 </Text>
             </TouchableOpacity>
 
             {/* Articles */}
             <TouchableOpacity
-                className={`flex-1 rounded-2xl border-[1.5px] p-3 ${
+                className={`h-[88px] flex-1 rounded-2xl border-[1.5px] p-3 ${
                     active === 'articles'
                         ? 'border-[#a78bfa]/30 bg-[#a78bfa]/[0.07]'
                         : 'border-border2 bg-surface2'
@@ -96,15 +96,15 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 onPress={() => handlePress('articles')}
             >
                 <View className="flex-row items-center justify-between">
-                    <Text className="text-lg">📰</Text>
+                    <Text className="text-2xl">📰</Text>
                     <Text
-                        className="text-[20px] leading-none"
-                        style={{ color: active === 'articles' ? '#a78bfa' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
+                        className="text-[28px] leading-none"
+                        style={{ color: '#a78bfa', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.articles}
                     </Text>
                 </View>
-                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
+                <Text className="mt-auto text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Articles
                 </Text>
             </TouchableOpacity>
