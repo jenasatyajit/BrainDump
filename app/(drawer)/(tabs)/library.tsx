@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState, useMemo } from 'react';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLibraryStore, type LibraryEntry } from '@/store/libraryStore';
 import { useChatStore } from '@/store/chatStore';
@@ -10,11 +10,14 @@ import VideoCard from '@/components/library/VideoCard';
 import ArticleCard from '@/components/library/ArticleCard';
 import LibraryEditModal from '@/components/library/LibraryEditModal';
 
+const VIDEOS_PER_PAGE = 10;
+
 export default function LibraryScreen() {
     const { filter, setFilter, getStats, getFilteredEntries } = useLibraryStore();
     const { loadMessages, editTask, deleteTask } = useChatStore();
     const [refreshing, setRefreshing] = useState(false);
     const [editEntry, setEditEntry] = useState<LibraryEntry | null>(null);
+    const [videosDisplayCount, setVideosDisplayCount] = useState(VIDEOS_PER_PAGE);
 
     const stats = getStats();
     const entries = getFilteredEntries();
@@ -32,6 +35,21 @@ export default function LibraryScreen() {
     const handleLongPress = (entry: LibraryEntry) => {
         setEditEntry(entry);
     };
+
+    const loadMoreVideos = useCallback(() => {
+        if (filter === 'videos' && videosDisplayCount < videos.length) {
+            setVideosDisplayCount(prev => Math.min(prev + VIDEOS_PER_PAGE, videos.length));
+        }
+    }, [filter, videosDisplayCount, videos.length]);
+
+    const displayedVideos = useMemo(() => {
+        return filter === 'videos' ? videos.slice(0, videosDisplayCount) : videos;
+    }, [filter, videos, videosDisplayCount]);
+
+    // Reset video count when filter changes
+    React.useEffect(() => {
+        setVideosDisplayCount(VIDEOS_PER_PAGE);
+    }, [filter]);
 
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-bg">
@@ -77,8 +95,8 @@ export default function LibraryScreen() {
 
                 {/* Videos Section */}
                 {(filter === 'all' || filter === 'videos') && videos.length > 0 && (
-                    <View className="mb-6 px-6">
-                        <View className="mb-3 flex-row items-center justify-between">
+                    <View className="mb-6">
+                        <View className="mb-3 flex-row items-center justify-between px-6">
                             <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                                 ● VIDEOS
                             </Text>
@@ -90,13 +108,57 @@ export default function LibraryScreen() {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        {videos.map((video) => (
-                            <VideoCard 
-                                key={video.messageId + video.entryIndex} 
-                                video={video}
-                                onLongPress={() => handleLongPress(video)}
-                            />
-                        ))}
+                        
+                        {filter === 'all' ? (
+                            // Horizontal scroll for "All" tab
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                className="px-6"
+                                contentContainerStyle={{ gap: 12 }}
+                            >
+                                {videos.map((video) => (
+                                    <VideoCard 
+                                        key={video.messageId + video.entryIndex} 
+                                        video={video}
+                                        onLongPress={() => handleLongPress(video)}
+                                    />
+                                ))}
+                            </ScrollView>
+                        ) : (
+                            // Grid layout for "Videos" tab with lazy loading
+                            <View className="px-6">
+                                <FlatList
+                                    data={displayedVideos}
+                                    keyExtractor={(item) => item.messageId + item.entryIndex}
+                                    renderItem={({ item }) => (
+                                        <View className="mb-3">
+                                            <VideoCard 
+                                                video={item}
+                                                onLongPress={() => handleLongPress(item)}
+                                                fullWidth
+                                            />
+                                        </View>
+                                    )}
+                                    scrollEnabled={false}
+                                    onEndReached={loadMoreVideos}
+                                    onEndReachedThreshold={0.5}
+                                    ListFooterComponent={
+                                        videosDisplayCount < videos.length ? (
+                                            <TouchableOpacity
+                                                className="mt-2 rounded-xl border border-border2 bg-surface2 py-3"
+                                                onPress={loadMoreVideos}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text className="text-center text-sm text-muted" style={{ fontFamily: 'DMSans_500Medium' }}>
+                                                    Load More ({videos.length - videosDisplayCount} remaining)
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ) : null
+                                    }
+                                />
+                            </View>
+                        )}
                     </View>
                 )}
 

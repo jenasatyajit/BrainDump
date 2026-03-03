@@ -61,7 +61,7 @@ function jsonToEntries(json: string | null): ParsedEntry[] | undefined {
 }
 
 // ── Library Resource Handler ──
-async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promise<void> {
+async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promise<Partial<ParsedEntry>> {
     try {
         if (entry.libraryType === 'book') {
             // Fetch book metadata
@@ -86,6 +86,12 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
                 coverLocalPath,
                 isbn: metadata?.isbn,
             });
+
+            // Return updated fields
+            return {
+                title: metadata?.title || entry.title,
+                author: metadata?.author || entry.author,
+            };
         } else if (entry.libraryType === 'video' && entry.url) {
             // Fetch video metadata
             if (entry.platform === 'youtube') {
@@ -99,6 +105,11 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
                     thumbnailUrl: metadata?.thumbnailUrl,
                     duration: metadata?.duration,
                 });
+
+                // Return updated title
+                return {
+                    title: metadata?.title || entry.title,
+                };
             } else if (entry.platform === 'instagram') {
                 // Instagram: just save URL
                 const metadata = libraryService.createInstagramMetadata(entry.url);
@@ -109,6 +120,11 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
                     videoUrl: entry.url,
                     videoPlatform: 'instagram',
                 });
+
+                // Return updated title
+                return {
+                    title: metadata.title,
+                };
             }
         } else if (entry.libraryType === 'article' && entry.url) {
             // Fetch article metadata
@@ -120,6 +136,11 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
                 articleUrl: entry.url,
                 domain: metadata?.domain,
             });
+
+            // Return updated title
+            return {
+                title: metadata?.title || entry.title,
+            };
         }
     } catch (error) {
         console.error('[chatStore] Failed to handle library resource:', error);
@@ -133,6 +154,8 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
             videoPlatform: entry.platform,
         });
     }
+    
+    return {}; // Return empty object if no updates
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -265,9 +288,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }));
             }
 
-            // Save entries to their respective tables
+            // Save entries to their respective tables and update with fetched metadata
             const entryId = await db.saveEntry(text);
-            for (const entry of response.entries) {
+            const updatedEntries = [...response.entries];
+            
+            for (let i = 0; i < response.entries.length; i++) {
+                const entry = response.entries[i];
+                
                 if (entry.type === 'task') {
                     await db.saveTask({ entryId, title: entry.title, dueDate: entry.dueDate, priority: entry.priority });
                 } else if (entry.type === 'note') {
@@ -279,9 +306,31 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                         scheduleReminder(entry.title, entry.remindAt, reminderId);
                     }
                 } else if (entry.type === 'library') {
-                    // Handle library resources
-                    await handleLibraryResource(entry, entryId);
+                    // Handle library resources and get updated metadata
+                    const updates = await handleLibraryResource(entry, entryId);
+                    
+                    // Update the entry with fetched metadata
+                    if (updates && Object.keys(updates).length > 0) {
+                        updatedEntries[i] = { ...entry, ...updates };
+                    }
                 }
+            }
+
+            // Update the AI message with the updated entries (including fetched metadata)
+            if (updatedEntries.some((e, i) => e !== response.entries[i])) {
+                aiMsg.entries = updatedEntries;
+                
+                // Update in database
+                await db.updateChatMessage(aiMsg.id, {
+                    entriesJson: entriesToJson(updatedEntries) || undefined,
+                });
+                
+                // Update in state
+                set((state) => ({
+                    messages: state.messages.map((msg) => 
+                        msg.id === aiMsg.id ? { ...msg, entries: updatedEntries } : msg
+                    ),
+                }));
             }
         } catch {
             const errorMsg: ChatMessage = {
