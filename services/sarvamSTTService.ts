@@ -1,6 +1,5 @@
-import Constants from 'expo-constants';
+import { getLLMConfig } from './database';
 
-const SARVAM_API_KEY = Constants.expoConfig?.extra?.sarvamApiKey || process.env.EXPO_PUBLIC_SARVAM_API_KEY;
 const SARVAM_STT_URL = 'https://api.sarvam.ai/speech-to-text-translate';
 
 export interface SarvamSTTResponse {
@@ -23,8 +22,12 @@ export async function transcribeAudio(
     mode: 'transcribe' | 'translate' | 'verbatim' | 'transliterate' | 'codemix' = 'transcribe'
 ): Promise<string> {
     try {
+        // Get Sarvam API key from user configuration
+        const config = await getLLMConfig();
+        const SARVAM_API_KEY = config?.sarvam_api_key;
+
         if (!SARVAM_API_KEY) {
-            throw new Error('Sarvam API key not found. Please add EXPO_PUBLIC_SARVAM_API_KEY to your .env file');
+            throw new Error('Sarvam API key required. Please add your Sarvam API key in Settings → Change Provider to use voice input.');
         }
 
         console.log('Transcribing audio from:', audioUri);

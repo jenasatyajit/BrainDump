@@ -12,6 +12,7 @@ import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/spac
 import { initDatabase, getLLMConfig } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
 import NotificationToast from '@/components/NotificationToast';
+import Toast from '@/components/Toast';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -88,6 +89,7 @@ export default function RootLayout() {
           />
         </Stack>
         <NotificationToast />
+        <Toast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

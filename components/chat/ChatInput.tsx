@@ -3,6 +3,8 @@ import { View, TextInput, TouchableOpacity, ScrollView, Text, Keyboard, Alert, A
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioRecorder, useAudioRecorderState, RecordingPresets, getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { transcribeAudio } from '@/services/sarvamSTTService';
+import { getLLMConfig } from '@/services/database';
+import { useToastStore } from '@/store/toastStore';
 
 interface ChatInputProps {
     onSend: (text: string) => void;
@@ -24,6 +26,7 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
     const inputRef = useRef<TextInput>(null);
     const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderState = useAudioRecorderState(recorder, 100); // Poll every 100ms
+    const { showToast } = useToastStore();
 
     const handleSend = () => {
         const trimmed = text.trim();
@@ -56,6 +59,18 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
 
     const startRecording = async () => {
         try {
+            // Check if Sarvam API key is configured
+            const config = await getLLMConfig();
+            if (!config?.sarvam_api_key) {
+                showToast({
+                    title: 'API Key Required',
+                    message: 'Add Sarvam API key in Settings to use voice input',
+                    type: 'warning',
+                    icon: 'key-outline',
+                });
+                return;
+            }
+
             const hasPermission = await checkPermissions();
             if (!hasPermission) return;
 
@@ -64,7 +79,11 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
             setIsRecording(true);
         } catch (error) {
             console.error('Failed to start recording:', error);
-            Alert.alert('Error', 'Failed to start recording. Please try again.');
+            showToast({
+                title: 'Recording Failed',
+                message: 'Failed to start recording. Please try again.',
+                type: 'error',
+            });
         }
     };
 
@@ -75,7 +94,11 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
             const uri = recorder.uri;
             
             if (!uri) {
-                Alert.alert('Error', 'No audio recorded');
+                showToast({
+                    title: 'Recording Error',
+                    message: 'No audio recorded',
+                    type: 'error',
+                });
                 return;
             }
 
@@ -87,11 +110,11 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
             
             // Check if duration is valid (30 seconds max for REST API)
             if (durationSeconds <= 0 || durationSeconds > 30) {
-                Alert.alert(
-                    'Recording Too Long',
-                    `Please keep your voice message under 30 seconds. Your recording was ${durationSeconds.toFixed(1)} seconds.`,
-                    [{ text: 'OK' }]
-                );
+                showToast({
+                    title: 'Recording Too Long',
+                    message: `Keep voice messages under 30 seconds (${durationSeconds.toFixed(1)}s recorded)`,
+                    type: 'warning',
+                });
                 return;
             }
 
@@ -102,11 +125,31 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
                 setText(text + (text ? ' ' : '') + transcript);
                 inputRef.current?.focus();
             } else {
-                Alert.alert('No Speech Detected', 'Please try speaking again.');
+                showToast({
+                    title: 'No Speech Detected',
+                    message: 'Please try speaking again',
+                    type: 'warning',
+                });
             }
         } catch (error) {
             console.error('Failed to transcribe audio:', error);
-            Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
+            
+            // Check if error is about missing API key
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            if (errorMessage.includes('Sarvam API key required')) {
+                showToast({
+                    title: 'API Key Required',
+                    message: 'Add Sarvam API key in Settings to use voice input',
+                    type: 'warning',
+                    icon: 'key-outline',
+                });
+            } else {
+                showToast({
+                    title: 'Transcription Failed',
+                    message: 'Failed to transcribe audio. Please try again.',
+                    type: 'error',
+                });
+            }
         } finally {
             setIsTranscribing(false);
         }
