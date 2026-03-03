@@ -19,6 +19,10 @@ module.exports = {
         note: '#ffd97e',
         reminder: '#ff7eb3',
       },
+      fontFamily: {
+        sans: ['DMSans_400Regular', 'DMSans_500Medium', 'DMSans_700Bold'],
+        mono: ['SpaceMono_400Regular', 'SpaceMono_700Bold'],
+      },
     },
   },
   plugins: [],

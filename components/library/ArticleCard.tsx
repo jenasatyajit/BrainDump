@@ -36,11 +36,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
 
             {/* Info */}
             <View className="flex-1">
-                <Text className="text-sm leading-tight text-text" numberOfLines={2}>
+                <Text className="text-[15px] leading-tight text-text" numberOfLines={2} style={{ fontFamily: 'DMSans_400Regular' }}>
                     {article.title}
                 </Text>
                 {domain && (
-                    <Text className="mt-1 font-mono text-[10px] text-[#a78bfa]">
+                    <Text className="mt-1 text-[11px] text-[#a78bfa]" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                         {domain}
                     </Text>
                 )}

@@ -12,8 +12,8 @@ export default function LibraryHeader({ total, onAddPress }: LibraryHeaderProps)
         <View className="px-6 pb-4 pt-3">
             <View className="flex-row items-start justify-between">
                 <View>
-                    <Text className="font-heading text-3xl tracking-tight text-text">Library</Text>
-                    <Text className="font-mono text-xs text-muted">
+                    <Text className="text-[28px] font-bold tracking-tight text-text" style={{ fontFamily: 'DMSans_700Bold' }}>Library</Text>
+                    <Text className="text-[13px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                         {total} resource{total !== 1 ? 's' : ''} saved
                     </Text>
                 </View>

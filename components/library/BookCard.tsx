@@ -30,13 +30,14 @@ export default function BookCard({ book, onPress }: BookCardProps) {
             {/* Info */}
             <View className="p-2.5">
                 <Text
-                    className="font-heading text-xs leading-tight text-text"
+                    className="text-[13px] leading-tight text-text"
                     numberOfLines={2}
+                    style={{ fontFamily: 'DMSans_500Medium' }}
                 >
                     {book.title}
                 </Text>
                 {book.author && (
-                    <Text className="mt-1 font-mono text-[10px] text-muted" numberOfLines={1}>
+                    <Text className="mt-1 text-[11px] text-muted" numberOfLines={1} style={{ fontFamily: 'SpaceMono_400Regular' }}>
                         {book.author}
                     </Text>
                 )}

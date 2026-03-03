@@ -50,13 +50,13 @@ export default function NoteCard({ note, isFullWidth, onEdit, onDelete }: NoteCa
                 </View>
             </View>
 
-            <Text className="mb-1.5 text-sm font-semibold leading-[18px] text-text" numberOfLines={2}>
+            <Text className="mb-1.5 text-[15px] leading-[18px] text-text" numberOfLines={2} style={{ fontFamily: 'DMSans_500Medium' }}>
                 {note.title}
             </Text>
-            <Text className="text-xs leading-[18px] text-muted" numberOfLines={3}>
+            <Text className="text-[13px] leading-[18px] text-muted" numberOfLines={3} style={{ fontFamily: 'DMSans_400Regular' }}>
                 {note.body}
             </Text>
-            <Text className="mt-2 text-[10px] text-muted">
+            <Text className="mt-2 text-[11px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                 {formatDate(note.createdAt)}
                 {note.category === 'Idea' ? ' · 2 related notes' : ''}
             </Text>

@@ -49,7 +49,7 @@ export default function VideoCard({ video }: VideoCardProps) {
 
             {/* Info */}
             <View className="flex-1">
-                <Text className="text-sm leading-tight text-text" numberOfLines={2}>
+                <Text className="text-[15px] leading-tight text-text" numberOfLines={2} style={{ fontFamily: 'DMSans_400Regular' }}>
                     {video.title}
                 </Text>
                 <View className="mt-1 flex-row items-center gap-2">
@@ -57,7 +57,7 @@ export default function VideoCard({ video }: VideoCardProps) {
                         className="rounded-full border px-2 py-0.5"
                         style={{ borderColor: platformColor + '40', backgroundColor: platformColor + '10' }}
                     >
-                        <Text className="font-mono text-[9px] uppercase" style={{ color: platformColor }}>
+                        <Text className="text-[10px] uppercase" style={{ color: platformColor, fontFamily: 'SpaceMono_400Regular' }}>
                             {video.platform}
                         </Text>
                     </View>

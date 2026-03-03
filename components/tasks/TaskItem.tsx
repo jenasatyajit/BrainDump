@@ -148,10 +148,11 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: TaskItemP
         {/* Content */}
         <View className="flex-1">
           <Text
-            className={`text-sm font-medium leading-5 ${task.isCompleted ? 'text-muted line-through' : 'text-text'}`}>
+            className={`text-[15px] leading-5 ${task.isCompleted ? 'text-muted line-through' : 'text-text'}`}
+            style={{ fontFamily: 'DMSans_500Medium' }}>
             {task.title}
           </Text>
-          <Text className="mt-0.5 text-xs text-muted">
+          <Text className="mt-0.5 text-[13px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
             {isReminder ? formatReminderDetail(task) : formatTaskDetail(task)}
           </Text>
         </View>

@@ -136,7 +136,7 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
                         activeOpacity={0.7}
                         onPress={() => handleChip(chip.fillText)}
                     >
-                        <Text className="text-[11px] text-muted">{chip.label}</Text>
+                        <Text className="text-[12px] text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>{chip.label}</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -146,14 +146,14 @@ export default function ChatInput({ onSend, isProcessing }: ChatInputProps) {
                 <View className="flex-1 flex-row items-end rounded-[20px] border border-border bg-surface2 pl-3.5 pr-1 py-1">
                     <TextInput
                         ref={inputRef}
-                        className="flex-1 py-1.5 text-sm text-text"
+                        className="flex-1 py-1.5 text-[15px] text-text"
                         placeholder="Brain dump anything..."
                         placeholderTextColor="#5a5a70"
                         value={text}
                         onChangeText={setText}
                         multiline
                         maxLength={500}
-                        style={{ maxHeight: 80 }}
+                        style={{ maxHeight: 80, fontFamily: 'DMSans_400Regular' }}
                         onSubmitEditing={handleSend}
                     />
                     <TouchableOpacity 

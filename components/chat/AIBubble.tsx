@@ -30,10 +30,10 @@ function AIBubble({
                 {isDigest && (
                     <View className="mb-1.5 flex-row items-center gap-1.5">
                         <Text className="text-sm">✦</Text>
-                        <Text className="text-[10px] tracking-wider text-accent">DAILY DIGEST</Text>
+                        <Text className="text-[11px] tracking-wider text-accent" style={{ fontFamily: 'SpaceMono_700Bold' }}>DAILY DIGEST</Text>
                     </View>
                 )}
-                <Text className="text-sm leading-[21px] text-text">{content}</Text>
+                <Text className="text-[15px] leading-[23px] text-text" style={{ fontFamily: 'DMSans_400Regular' }}>{content}</Text>
             </View>
             {entries?.map((entry, index) => (
                 <ParsedCard

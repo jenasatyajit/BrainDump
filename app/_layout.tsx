@@ -6,6 +6,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
+import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 
 import { initDatabase } from '@/services/database';
 import { useChatStore } from '@/store/chatStore';
@@ -21,6 +23,14 @@ export const unstable_settings = {
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const loadMessages = useChatStore((s) => s.loadMessages);
+
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+    SpaceMono_400Regular,
+    SpaceMono_700Bold,
+  });
 
   useEffect(() => {
     async function bootstrap() {
@@ -38,7 +48,7 @@ export default function RootLayout() {
     bootstrap();
   }, [loadMessages]);
 
-  if (!isReady) {
+  if (!isReady || !fontsLoaded) {
     return null;
   }
 

@@ -42,7 +42,7 @@ export default function LibraryScreen() {
                     <View className="mb-6">
                         <View className="mb-3 flex-row items-center gap-2 px-6">
                             <View className="h-2 w-2 rounded-full bg-[#f59e6a]" />
-                            <Text className="font-mono text-xs uppercase tracking-wide text-muted">
+                            <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                                 Books
                             </Text>
                         </View>
@@ -64,7 +64,7 @@ export default function LibraryScreen() {
                     <View className="mb-6 px-6">
                         <View className="mb-3 flex-row items-center gap-2">
                             <View className="h-2 w-2 rounded-full bg-[#7eb8ff]" />
-                            <Text className="font-mono text-xs uppercase tracking-wide text-muted">
+                            <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                                 Videos
                             </Text>
                         </View>
@@ -79,7 +79,7 @@ export default function LibraryScreen() {
                     <View className="mb-6">
                         <View className="mb-3 flex-row items-center gap-2 px-6">
                             <View className="h-2 w-2 rounded-full bg-[#a78bfa]" />
-                            <Text className="font-mono text-xs uppercase tracking-wide text-muted">
+                            <Text className="text-[13px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                                 Articles
                             </Text>
                         </View>

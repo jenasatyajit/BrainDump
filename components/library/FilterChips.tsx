@@ -29,13 +29,12 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 onPress={() => handlePress('all')}
             >
                 <Text
-                    className={`font-heading text-lg leading-none ${
-                        active === 'all' ? 'text-accent' : 'text-text'
-                    }`}
+                    className="text-[20px] leading-none"
+                    style={{ color: active === 'all' ? '#7fff9e' : '#e8e8f0', fontFamily: 'DMSans_700Bold' }}
                 >
                     {stats.total}
                 </Text>
-                <Text className="font-mono text-[9px] uppercase tracking-wide text-muted">All</Text>
+                <Text className="text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>All</Text>
             </TouchableOpacity>
 
             {/* Books */}
@@ -51,13 +50,13 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 <View className="flex-row items-center justify-between">
                     <Text className="text-lg">📚</Text>
                     <Text
-                        className="font-heading text-lg leading-none"
-                        style={{ color: active === 'books' ? '#f59e6a' : '#e2e2f0' }}
+                        className="text-[20px] leading-none"
+                        style={{ color: active === 'books' ? '#f59e6a' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.books}
                     </Text>
                 </View>
-                <Text className="mt-1.5 font-mono text-[9px] uppercase tracking-wide text-muted">
+                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Books
                 </Text>
             </TouchableOpacity>
@@ -75,13 +74,13 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 <View className="flex-row items-center justify-between">
                     <Text className="text-lg">🎬</Text>
                     <Text
-                        className="font-heading text-lg leading-none"
-                        style={{ color: active === 'videos' ? '#7eb8ff' : '#e2e2f0' }}
+                        className="text-[20px] leading-none"
+                        style={{ color: active === 'videos' ? '#7eb8ff' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.videos}
                     </Text>
                 </View>
-                <Text className="mt-1.5 font-mono text-[9px] uppercase tracking-wide text-muted">
+                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Videos
                 </Text>
             </TouchableOpacity>
@@ -99,13 +98,13 @@ export default function FilterChips({ active, stats, onFilterChange }: FilterChi
                 <View className="flex-row items-center justify-between">
                     <Text className="text-lg">📰</Text>
                     <Text
-                        className="font-heading text-lg leading-none"
-                        style={{ color: active === 'articles' ? '#a78bfa' : '#e2e2f0' }}
+                        className="text-[20px] leading-none"
+                        style={{ color: active === 'articles' ? '#a78bfa' : '#e2e2f0', fontFamily: 'DMSans_700Bold' }}
                     >
                         {stats.articles}
                     </Text>
                 </View>
-                <Text className="mt-1.5 font-mono text-[9px] uppercase tracking-wide text-muted">
+                <Text className="mt-1.5 text-[10px] uppercase tracking-wide text-muted" style={{ fontFamily: 'SpaceMono_400Regular' }}>
                     Articles
                 </Text>
             </TouchableOpacity>

@@ -34,8 +34,8 @@ export default function FilterPills({ activeFilter, onFilterChange }: FilterPill
                         onPress={() => onFilterChange(filter.key)}
                     >
                         <Text
-                            className="text-xs"
-                            style={{ color: isActive ? '#7eb8ff' : '#5a5a70' }}
+                            className="text-[13px]"
+                            style={{ color: isActive ? '#7eb8ff' : '#5a5a70', fontFamily: 'SpaceMono_400Regular' }}
                         >
                             {filter.label}
                         </Text>

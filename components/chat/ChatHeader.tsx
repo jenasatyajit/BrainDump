@@ -8,7 +8,7 @@ export default function ChatHeader() {
 
     return (
         <View className="flex-row items-center justify-between px-6 pb-4 pt-3">
-            <Text className="text-[26px] font-extrabold tracking-tight text-text">
+            <Text className="text-[32px] font-bold tracking-tight text-text" style={{ fontFamily: 'DMSans_700Bold' }}>
                 DU<Text className="text-accent">MP</Text>
             </Text>
             <View className="flex-row gap-2">

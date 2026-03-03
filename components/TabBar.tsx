@@ -41,8 +41,8 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
                             color={isActive ? '#7fff9e' : '#5a5a70'}
                         />
                         <Text
-                            className="font-mono text-[10px] tracking-wide"
-                            style={{ color: isActive ? '#7fff9e' : '#5a5a70' }}
+                            className="text-[11px] tracking-wide"
+                            style={{ color: isActive ? '#7fff9e' : '#5a5a70', fontFamily: 'SpaceMono_400Regular' }}
                         >
                             {tab.label}
                         </Text>
