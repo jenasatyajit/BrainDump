@@ -353,6 +353,26 @@ export async function getReminders(includeDeleted = false): Promise<DbReminder[]
     );
 }
 
+/**
+ * Look up a reminder row by its title and remind_at value.
+ * Returns { id, notification_id } so the caller can both cancel the OS notification
+ * and soft-delete the correct row in one DB call.
+ * Returns null if no matching row is found.
+ */
+export async function getReminderRow(
+    title: string,
+    remindAt: string | undefined
+): Promise<{ id: string; notification_id: string | null } | null> {
+    return await getDb().getFirstAsync<{ id: string; notification_id: string | null }>(
+        `SELECT id, notification_id FROM reminders
+         WHERE title = ? AND (remind_at = ? OR (remind_at IS NULL AND ? IS NULL))
+         ORDER BY created_at DESC LIMIT 1`,
+        title,
+        remindAt ?? null,
+        remindAt ?? null
+    );
+}
+
 // ── Library Resources ──
 
 export interface DbLibraryResource {
@@ -699,7 +719,7 @@ export async function resetLLMConfig(): Promise<void> {
 async function handleSchemaMigration(): Promise<void> {
     try {
         console.log('[database] ═══ Checking schema version ═══');
-        
+
         // Try to get current schema version
         let currentVersion = 1;
         try {
@@ -717,13 +737,13 @@ async function handleSchemaMigration(): Promise<void> {
         // If schema version is less than 2, this is an old version
         if (currentVersion < 2) {
             console.log('[database] Migrating from old version to version 2');
-            
+
             // Check if llm_config exists and has any keys
             const existingConfig = await getLLMConfig();
-            
+
             if (existingConfig) {
                 console.log('[database] Found existing LLM config - clearing API keys to force re-entry');
-                
+
                 // Clear all API keys but keep the provider setting
                 await getDb().runAsync(
                     `UPDATE llm_config SET 
@@ -734,19 +754,19 @@ async function handleSchemaMigration(): Promise<void> {
                     WHERE id = 1`,
                     new Date().toISOString()
                 );
-                
+
                 console.log('[database] ✓ API keys cleared - user will need to re-enter them');
             }
-            
+
             // Update schema version to 2
             await setSchemaVersion(2);
             await setUserKeysConfigured(false);
-            
+
             console.log('[database] ✓ Migration to version 2 complete');
         } else {
             console.log('[database] Schema is up to date (version 2)');
         }
-        
+
         console.log('[database] ═══ Schema check complete ═══');
     } catch (error) {
         console.error('[database] ✗ Schema migration failed:', error);
@@ -761,10 +781,10 @@ async function handleSchemaMigration(): Promise<void> {
 export async function migrateEnvKeysToDatabase(): Promise<void> {
     try {
         console.log('[database] ═══ Starting SATYA KEY migration ═══');
-        
+
         // Check if config already exists
         const existing = await getLLMConfig();
-        
+
         if (!existing) {
             console.log('[database] No existing config - SATYA KEY migration skipped (user must configure first)');
             return;
@@ -811,13 +831,13 @@ export async function migrateEnvKeysToDatabase(): Promise<void> {
         if (needsUpdate) {
             console.log('[database] Updating config with missing keys');
             await saveLLMConfig(updates);
-            
+
             const updated = await getLLMConfig();
             console.log('[database] ✓ Config updated with SATYA KEY');
         } else {
             console.log('[database] All keys already present, no updates needed');
         }
-        
+
         console.log('[database] ═══ SATYA KEY migration complete ═══');
     } catch (error) {
         console.error('[database] ✗ SATYA KEY migration failed:', error);

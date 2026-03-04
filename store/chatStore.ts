@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { classifyMessage, type ParsedEntry, type AIResponse } from '@/services/aiService';
 import * as db from '@/services/database';
-import { scheduleReminder } from '@/services/notificationService';
+import { scheduleReminder, cancelReminder } from '@/services/notificationService';
 import * as libraryService from '@/services/libraryService';
+
 
 export interface ChatMessage {
     id: string;
@@ -23,10 +24,11 @@ interface ChatStore {
     addUserMessage: (text: string) => Promise<void>;
     toggleTaskComplete: (messageId: string, entryIndex: number) => void;
     editTask: (messageId: string, entryIndex: number, updates: Partial<ParsedEntry>) => void;
-    deleteTask: (messageId: string, entryIndex: number) => void;
+    deleteTask: (messageId: string, entryIndex: number) => Promise<void>;
     addDigestMessage: (content: string) => void;
     clearMessages: () => void;
 }
+
 
 let idCounter = Date.now();
 const generateId = () => String(++idCounter);
@@ -66,9 +68,9 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
         if (entry.libraryType === 'book') {
             // Fetch book metadata
             const metadata = await libraryService.fetchBookMetadata(entry.title);
-            
+
             let coverLocalPath: string | undefined;
-            
+
             // Download and cache cover image if available
             if (metadata?.coverUrl) {
                 const cachedPath = await libraryService.downloadAndCacheImage(metadata.coverUrl, entryId);
@@ -76,7 +78,7 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
                     coverLocalPath = cachedPath;
                 }
             }
-            
+
             await db.saveLibraryResource({
                 entryId,
                 type: 'book',
@@ -154,7 +156,7 @@ async function handleLibraryResource(entry: ParsedEntry, entryId: string): Promi
             videoPlatform: entry.platform,
         });
     }
-    
+
     return {}; // Return empty object if no updates
 }
 
@@ -254,10 +256,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             if (currentProvider && lastProvider && currentProvider !== lastProvider) {
                 // Provider changed - add system message
                 const systemMsgId = generateId();
-                const providerName = response.usedModel 
+                const providerName = response.usedModel
                     ? `${currentProvider} (${response.usedModel})`
                     : currentProvider;
-                
+
                 const systemMsg: ChatMessage = {
                     id: systemMsgId,
                     role: 'system',
@@ -291,10 +293,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             // Save entries to their respective tables and update with fetched metadata
             const entryId = await db.saveEntry(text);
             const updatedEntries = [...response.entries];
-            
+
             for (let i = 0; i < response.entries.length; i++) {
                 const entry = response.entries[i];
-                
+
                 if (entry.type === 'task') {
                     await db.saveTask({ entryId, title: entry.title, dueDate: entry.dueDate, priority: entry.priority });
                 } else if (entry.type === 'note') {
@@ -308,7 +310,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 } else if (entry.type === 'library') {
                     // Handle library resources and get updated metadata
                     const updates = await handleLibraryResource(entry, entryId);
-                    
+
                     // Update the entry with fetched metadata
                     if (updates && Object.keys(updates).length > 0) {
                         updatedEntries[i] = { ...entry, ...updates };
@@ -319,15 +321,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             // Update the AI message with the updated entries (including fetched metadata)
             if (updatedEntries.some((e, i) => e !== response.entries[i])) {
                 aiMsg.entries = updatedEntries;
-                
+
                 // Update in database
                 await db.updateChatMessage(aiMsg.id, {
                     entriesJson: entriesToJson(updatedEntries) || undefined,
                 });
-                
+
                 // Update in state
                 set((state) => ({
-                    messages: state.messages.map((msg) => 
+                    messages: state.messages.map((msg) =>
                         msg.id === aiMsg.id ? { ...msg, entries: updatedEntries } : msg
                     ),
                 }));
@@ -388,19 +390,47 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }));
     },
 
-    deleteTask: (messageId: string, entryIndex: number) => {
-        set((state) => ({
-            messages: state.messages.map((msg) => {
-                if (msg.id === messageId && msg.entries) {
-                    const newEntries = [...msg.entries];
-                    newEntries[entryIndex] = { ...newEntries[entryIndex], isDeleted: true };
-                    db.updateChatMessage(msg.id, { entriesJson: entriesToJson(newEntries) || undefined });
-                    return { ...msg, entries: newEntries };
+    deleteTask: async (messageId: string, entryIndex: number) => {
+        // Grab the current state so we can inspect the entry before mutating
+        const messages = get().messages;
+        const msg = messages.find((m) => m.id === messageId);
+        const entry = msg?.entries?.[entryIndex];
+
+        // For reminder entries: cancel the OS-level notification before soft-deleting.
+        // Without this the notification fires even though the item is gone from the UI.
+        if (entry?.type === 'reminder') {
+            try {
+                const reminderRow = await db.getReminderRow(
+                    entry.title,
+                    entry.remindAt
+                );
+                if (reminderRow?.notification_id) {
+                    await cancelReminder(reminderRow.notification_id);
+                    console.log('[chatStore] Cancelled notification for deleted reminder:', entry.title);
                 }
-                return msg;
+                // Soft-delete the reminders table row using its real DB id
+                if (reminderRow?.id) {
+                    await db.softDelete('reminders', reminderRow.id);
+                }
+            } catch (err) {
+                // Non-fatal: state soft-delete still runs below
+                console.warn('[chatStore] Could not cancel notification for reminder:', err);
+            }
+        }
+
+        set((state) => ({
+            messages: state.messages.map((m) => {
+                if (m.id === messageId && m.entries) {
+                    const newEntries = [...m.entries];
+                    newEntries[entryIndex] = { ...newEntries[entryIndex], isDeleted: true };
+                    db.updateChatMessage(m.id, { entriesJson: entriesToJson(newEntries) || undefined });
+                    return { ...m, entries: newEntries };
+                }
+                return m;
             }),
         }));
     },
+
 
     addDigestMessage: (content: string) => {
         const digestMsg: ChatMessage = {
