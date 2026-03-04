@@ -36,17 +36,24 @@ export default function InboxScreen() {
   );
 
   const handleDigest = useCallback(async () => {
-    const tasks = messages
+    // Read messages directly from the store at call-time instead of closing over
+    // the `messages` variable. This removes `messages` from the dependency array,
+    // so handleDigest gets a stable reference across renders.
+    // Previously, every new message caused a new handleDigest reference which
+    // drove an InboxScreen re-render and cascaded into unnecessary FlatList work.
+    const { messages: currentMessages } = useChatStore.getState();
+
+    const tasks = currentMessages
       .filter((m) => m.entries?.some((e) => e.type === 'task'))
       .flatMap((m) => m.entries?.filter((e) => e.type === 'task').map((e) => e.title) || []);
 
-    const completed = messages
+    const completed = currentMessages
       .filter((m) => m.entries?.some((e) => e.type === 'task' && e.isCompleted))
       .flatMap(
         (m) => m.entries?.filter((e) => e.type === 'task' && e.isCompleted).map((e) => e.title) || []
       );
 
-    const reminders = messages
+    const reminders = currentMessages
       .filter((m) => m.entries?.some((e) => e.type === 'reminder'))
       .flatMap((m) => m.entries?.filter((e) => e.type === 'reminder').map((e) => e.title) || []);
 
@@ -60,12 +67,12 @@ export default function InboxScreen() {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [messages, addDigestMessage]);
+  }, [addDigestMessage]);
 
   const renderMessage = useCallback(
-    ({ item, index }: { item: ChatMessage; index: number }) => {
+    ({ item }: { item: ChatMessage }) => {
       // First message is the AI greeting
-      if (index === 0 && item.role === 'ai' && !item.entries) {
+      if (item.role === 'ai' && !item.entries && !item.isDigest && !item.isThinking) {
         return <AIGreeting />;
       }
 
@@ -115,9 +122,6 @@ export default function InboxScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7fff9e" colors={['#7fff9e']} progressBackgroundColor="#18181f" />
           }
-          onContentSizeChange={() => {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }}
         />
 
         <ChatInput onSend={handleSend} isProcessing={isProcessing} />

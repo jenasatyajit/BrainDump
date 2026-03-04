@@ -59,7 +59,7 @@ function formatMeta(entry: ParsedEntry): string {
 
     if (entry.type === 'library') {
         if (entry.libraryType === 'book') {
-            parts.push('� Book');
+            parts.push('📖 Book');
             if (entry.author) parts.push(entry.author);
         } else if (entry.libraryType === 'video') {
             if (entry.platform === 'youtube') parts.push('📺 YouTube');
@@ -78,16 +78,53 @@ function formatMeta(entry: ParsedEntry): string {
     }
 
     if (entry.type === 'reminder' && entry.priority === 'high') {
-        // Replace the priority text with overdue indicator for reminders
         return parts.filter((p) => p !== '🟡 High priority').join(' · ') + ' · 🔴 Overdue';
     }
 
     return parts.join(' · ') || (entry.type === 'task' ? 'Tap to complete' : 'Saved');
 }
 
-export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps) {
+// ── CardContent is a stable top-level component ──
+// Previously defined *inside* ParsedCard's render function which caused React to
+// treat it as a brand-new component type on every render, forcing full unmount +
+// remount of every card on any state change (e.g. toggling a task).
+interface CardContentProps {
+    tagColor: string;
+    categoryLabel: string;
+    title: string;
+    isCompleted: boolean;
+    meta: string;
+}
+
+const CardContent = React.memo(function CardContent({
+    tagColor,
+    categoryLabel,
+    title,
+    isCompleted,
+    meta,
+}: CardContentProps) {
+    return (
+        <>
+            <View className="mb-1.5 flex-row items-center gap-1.5">
+                <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tagColor }} />
+                <Text className="text-[9px] tracking-[1.5px]" style={{ color: tagColor }}>
+                    {categoryLabel}
+                </Text>
+            </View>
+            <Text
+                className={`text-[13px] font-medium leading-[18px] ${isCompleted ? 'line-through text-muted' : 'text-text'}`}
+            >
+                {title}
+            </Text>
+            <Text className="mt-1 text-xs text-muted">{meta}</Text>
+        </>
+    );
+});
+
+// ── ParsedCard is memoised so FlatList skips unchanged items ──
+function ParsedCard({ entry, onToggleComplete }: ParsedCardProps) {
     const style = TYPE_STYLES[entry.type];
-    
+
     let categoryLabel = style.label;
     if (entry.type === 'note' && entry.category) {
         categoryLabel = `${style.label} — ${entry.category.toUpperCase()}`;
@@ -95,22 +132,7 @@ export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps)
         categoryLabel = `${style.label} — ${entry.libraryType.toUpperCase()}`;
     }
 
-    const CardContent = React.memo(() => (
-        <>
-            <View className="mb-1.5 flex-row items-center gap-1.5">
-                <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: style.tagColor }} />
-                <Text className="text-[9px] tracking-[1.5px]" style={{ color: style.tagColor }}>
-                    {categoryLabel}
-                </Text>
-            </View>
-            <Text
-                className={`text-[13px] font-medium leading-[18px] ${entry.isCompleted ? 'line-through text-muted' : 'text-text'}`}
-            >
-                {entry.title}
-            </Text>
-            <Text className="mt-1 text-xs text-muted">{formatMeta(entry)}</Text>
-        </>
-    ));
+    const meta = formatMeta(entry);
 
     if (entry.type === 'task') {
         return (
@@ -133,7 +155,13 @@ export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps)
                         )}
                     </View>
                     <View className="flex-1">
-                        <CardContent />
+                        <CardContent
+                            tagColor={style.tagColor}
+                            categoryLabel={categoryLabel}
+                            title={entry.title}
+                            isCompleted={entry.isCompleted}
+                            meta={meta}
+                        />
                     </View>
                 </View>
             </TouchableOpacity>
@@ -145,7 +173,15 @@ export default function ParsedCard({ entry, onToggleComplete }: ParsedCardProps)
             className="mt-1.5 rounded-2xl border p-3 px-3.5"
             style={{ backgroundColor: style.bg, borderColor: style.border }}
         >
-            <CardContent />
+            <CardContent
+                tagColor={style.tagColor}
+                categoryLabel={categoryLabel}
+                title={entry.title}
+                isCompleted={entry.isCompleted}
+                meta={meta}
+            />
         </View>
     );
 }
+
+export default React.memo(ParsedCard);
