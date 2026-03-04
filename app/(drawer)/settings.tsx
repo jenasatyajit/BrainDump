@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { fullSync, getLastSyncTime } from '@/services/syncService';
@@ -10,6 +11,7 @@ import type { User } from '@supabase/supabase-js';
 import appConfig from '@/app.json';
 
 export default function SettingsScreen() {
+    const insets = useSafeAreaInsets();
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastSync, setLastSync] = useState<string | null>(null);
     const [user, setUser] = useState<User | null>(null);
@@ -121,7 +123,7 @@ Sarvam Key: ${config?.sarvam_api_key ? `${config.sarvam_api_key.substring(0, 15)
 
 OpenRouter Model: ${config?.openrouter_model || 'none'}
         `.trim();
-        
+
         Alert.alert('Current LLM Config', details);
     }, []);
 
@@ -152,7 +154,7 @@ OpenRouter Model: ${config?.openrouter_model || 'none'}
             const updated = await getLLMConfig();
             setLlmConfig(updated);
             setSatyaKey('');
-            
+
             Alert.alert('Success', 'Developer API keys have been applied!');
         } catch (error) {
             console.error('[settings] Failed to apply SATYA KEY:', error);
@@ -172,19 +174,19 @@ OpenRouter Model: ${config?.openrouter_model || 'none'}
 
     const getProviderDisplayName = () => {
         if (!llmConfig) return 'Loading...';
-        
+
         const providerNames = {
             gemini: 'Gemini',
             openrouter: 'OpenRouter',
             sarvam: 'Sarvam AI',
         };
-        
+
         return providerNames[llmConfig.provider] || llmConfig.provider;
     };
 
     const getModelDisplayName = () => {
         if (!llmConfig) return 'Loading...';
-        
+
         if (llmConfig.provider === 'gemini') {
             return 'Gemini 3 Flash';
         } else if (llmConfig.provider === 'openrouter') {
@@ -195,12 +197,19 @@ OpenRouter Model: ${config?.openrouter_model || 'none'}
         } else if (llmConfig.provider === 'sarvam') {
             return 'Sarvam-M';
         }
-        
+
         return 'Unknown';
     };
 
     return (
-        <ScrollView className="flex-1 bg-bg px-6 pt-6">
+        <ScrollView
+            className="flex-1 bg-bg"
+            contentContainerStyle={{
+                paddingHorizontal: 24,
+                paddingTop: 24,
+                paddingBottom: Math.max(insets.bottom + 40, 100)
+            }}
+        >
 
             {/* Account Section */}
             <Text className="mb-4 text-xs uppercase tracking-widest text-muted">Account</Text>

@@ -42,11 +42,8 @@ export default function AuthScreen() {
             if (mode === 'signup') {
                 const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
                 if (err) throw err;
-                Alert.alert(
-                    'Check your inbox',
-                    'We sent a confirmation email. Verify it then sign in.',
-                    [{ text: 'OK', onPress: () => setMode('signin') }]
-                );
+                // Success: If email confirmation is off, the user is auto-signed in.
+                router.back();
             } else {
                 const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
                 if (err) throw err;
