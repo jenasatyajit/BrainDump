@@ -18,7 +18,7 @@ export interface ParsedEntry {
     category?: string;
     isCompleted: boolean;
     isDeleted?: boolean;
-    
+
     // Library fields
     libraryType?: 'book' | 'video' | 'article';
     author?: string;
@@ -34,14 +34,35 @@ export interface AIResponse {
     usedModel?: string;
 }
 
+// ── Helpers ──
+
+/**
+ * Returns the current local datetime as a timezone-aware ISO-8601 string,
+ * e.g. "2026-03-04T22:38:00+05:30".  Using new Date().toISOString() would
+ * always give UTC which causes the AI to compute relative times ("tonight",
+ * "in 2 hours") relative to the wrong clock.
+ */
+function getLocalISOString(): string {
+    const now = new Date();
+    const pad = (n: number, len = 2) => String(Math.floor(Math.abs(n))).padStart(len, '0');
+    const offsetMin = -now.getTimezoneOffset(); // positive for UTC+, negative for UTC-
+    const sign = offsetMin >= 0 ? '+' : '-';
+    const hh = pad(offsetMin / 60);
+    const mm = pad(offsetMin % 60);
+    return (
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+        `T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}` +
+        `${sign}${hh}:${mm}`
+    );
+}
+
 // ── Gemini Prompt Builder ──
 
 function buildCategorizationPrompt(): string {
-    const now = new Date();
-    const iso = now.toISOString();
+    const localIso = getLocalISOString();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    return `You are a semantic inbox parser. Current datetime: ${iso}. Timezone: ${tz}.
+    return `You are a semantic inbox parser. Current datetime: ${localIso}. Timezone: ${tz}.
 
 Return ONLY valid JSON. No prose. No markdown fences.
 
@@ -97,11 +118,10 @@ Return ONLY the prose text, no JSON, no markdown.`;
 }
 
 function buildCorrectionPrompt(): string {
-    const now = new Date();
-    const iso = now.toISOString();
+    const localIso = getLocalISOString();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    return `You are a semantic inbox parser. Current datetime: ${iso}. Timezone: ${tz}.
+    return `You are a semantic inbox parser. Current datetime: ${localIso}. Timezone: ${tz}.
 
 The user is correcting a previous classification. Re-parse with the correction applied.
 
@@ -234,7 +254,7 @@ function localClassify(text: string): ParsedEntry[] {
 
     // Check for library resources first (highest priority)
     const resourceType = detectResourceType(text);
-    
+
     if (resourceType === 'video') {
         const { platform, id } = extractVideoId(text);
         if (platform && id) {
@@ -248,7 +268,7 @@ function localClassify(text: string): ParsedEntry[] {
             }];
         }
     }
-    
+
     if (resourceType === 'article') {
         // Extract URL from text
         const urlMatch = text.match(/(https?:\/\/[^\s]+)/);
@@ -262,7 +282,7 @@ function localClassify(text: string): ParsedEntry[] {
             }];
         }
     }
-    
+
     if (resourceType === 'book') {
         const bookTitle = extractBookTitle(text);
         return [{

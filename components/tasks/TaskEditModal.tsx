@@ -41,16 +41,24 @@ export default function TaskEditModal({ visible, task, onClose, onSave }: TaskEd
     }
   }, [task]);
 
+  /** Zero-pad a number to 2 digits (local helper, avoids toISOString UTC shift). */
+  const pad = (n: number) => String(n).padStart(2, '0');
+
   const handleSave = () => {
     if (!task) return;
 
-    let finalDueDate = undefined;
-    let finalRemindAt = undefined;
+    let finalDueDate: string | undefined = undefined;
+    let finalRemindAt: string | undefined = undefined;
 
     if (dueDate) {
-      const dateStr = dueDate.toISOString().split('T')[0];
+      // Use LOCAL date getters — toISOString() returns UTC and can shift the date
+      // by up to ±14 hours depending on the device timezone.
+      const dateStr =
+        `${dueDate.getFullYear()}-${pad(dueDate.getMonth() + 1)}-${pad(dueDate.getDate())}`;
+
       if (time) {
-        const timeStr = time.toISOString().split('T')[1];
+        // Same for the time component — convert to local HH:MM:SS
+        const timeStr = `${pad(time.getHours())}:${pad(time.getMinutes())}:00`;
         finalRemindAt = `${dateStr}T${timeStr}`;
         finalDueDate = dateStr;
       } else {
